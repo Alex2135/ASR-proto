@@ -10,11 +10,11 @@ namespace ASR_proto
 {
     public class Recorder
     {
+        public Action FinishRecord { get; set; }
+        public string RecordPath { get; set; }
         private FileStream _fileStream;
         private AudioCaptureDevice _microphone;
         private WaveEncoder _audioSaver;
-        public Action FinishRecord { get; set; }
-        public string RecordPath { get; set; }
 
         public Recorder(Action _finishRecord, string _path = "1.wav")
         {
