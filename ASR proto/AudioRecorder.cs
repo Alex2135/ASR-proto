@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Threading;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Accord.Audio;
 using Accord.DirectSound;
@@ -12,6 +13,7 @@ namespace ASR_proto
     {
         public Action FinishRecord { get; set; }
         public string RecordPath { get; set; }
+        public bool IsRecordContinue { get; set; }
         private FileStream _fileStream;
         private AudioCaptureDevice _microphone;
         private WaveEncoder _audioSaver;
@@ -20,6 +22,7 @@ namespace ASR_proto
         {
             FinishRecord = _finishRecord;
             RecordPath = _path;
+            IsRecordContinue = false;
         }
 
         private void source_NewFrame(object sender, NewFrameEventArgs eventArgs)
@@ -76,6 +79,7 @@ namespace ASR_proto
                 _fileStream = new FileStream(RecordPath, FileMode.OpenOrCreate, FileAccess.Write);
                 _audioSaver = new WaveEncoder();
                 _audioSaver.Open(_fileStream);
+                IsRecordContinue = true;
                 _microphone.Start();
                 t.Start();
                 await t;
@@ -87,9 +91,11 @@ namespace ASR_proto
             }
             finally
             {
+                t.Dispose();
+                _microphone.Dispose();
                 _audioSaver?.Close();
                 _fileStream?.Close();
-                t.Dispose();
+                IsRecordContinue = false;
             }
         }
     }
