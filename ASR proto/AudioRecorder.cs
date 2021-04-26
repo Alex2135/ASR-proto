@@ -65,7 +65,7 @@ namespace ASR_proto
             _microphone.SignalToStop();
         }
 
-        public async void RecordToAsync(string _path = "1.wav")
+        public async void RecordAudioToFile(string _path = "1.wav")
         {
             if (_microphone == null) SetRecorder();
             if (FinishRecord == null) throw new Exception("FinishRecord function not set!");

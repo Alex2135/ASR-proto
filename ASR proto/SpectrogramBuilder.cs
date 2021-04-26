@@ -19,18 +19,21 @@ namespace ASR_proto
         public SpectrogramBuilder()
         {
             ImagePath = "1.jpg";
-            FFTSize = 8192;
-            FFTStepSize = 256;
-            MaxFrequency = 11000;
+            SetDefault();
             ImageColormap = Colormap.Blues;
         }
         public SpectrogramBuilder(string _path)
         {
             ImagePath = _path;
-            FFTSize = 8192;
-            FFTStepSize = 256;
-            MaxFrequency = 11000;
+            SetDefault();
             ImageColormap = Colormap.Blues;
+        }
+
+        private void SetDefault()
+        {
+            FFTSize = 2048;
+            FFTStepSize = 512;
+            MaxFrequency = 22_050;
         }
 
         public void BuildSpectrogram(string _wavPath)

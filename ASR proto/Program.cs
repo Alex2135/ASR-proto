@@ -15,12 +15,12 @@ namespace ASR_proto
                 {
                     Console.ReadKey();
                 };
-                recorder.RecordToAsync();
+                recorder.RecordAudioToFile();
 
                 while (recorder.IsRecordContinue) { }
 
                 SpectrogramBuilder spectrogramBuilder = new SpectrogramBuilder();
-                spectrogramBuilder.ImagePath = "viridis.jpg";
+                spectrogramBuilder.ImagePath = "images\\viridis.jpg";
                 spectrogramBuilder.ImageColormap = Colormap.Viridis;
                 spectrogramBuilder.BuildSpectrogram(path);
 
@@ -29,9 +29,6 @@ namespace ASR_proto
             {
                 Console.WriteLine(ex.Message);
             }
-
         }
-
-
     }
 }
