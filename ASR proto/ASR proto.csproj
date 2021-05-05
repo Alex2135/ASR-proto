@@ -12,6 +12,7 @@
     <PackageReference Include="Accord.DirectSound" Version="3.8.0" />
     <PackageReference Include="Accord.Extensions.Imaging.Algorithms" Version="3.0.1" />
     <PackageReference Include="Accord.Imaging" Version="3.8.0" />
+    <PackageReference Include="CsvHelper" Version="27.0.2" />
     <PackageReference Include="Keras.NET" Version="3.8.5" />
     <PackageReference Include="Microsoft.ML" Version="1.5.5" />
     <PackageReference Include="NAudio" Version="2.0.0" />
