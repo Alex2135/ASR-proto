@@ -11,8 +11,8 @@ namespace ASR_proto
     class SpectrogramBuilder
     {
         public string ImagePath { get; set; } = "1.jpg";
-        public int FFTSize { get; set; } = 2048;
-        public int FFTStepSize { get; set; } = 1024;
+        public int FFTSize { get; set; } = 4096;
+        public int FFTStepSize { get; set; } = 512;
         public double MaxFrequency { get; set; } = 44_100;
         public Colormap ImageColormap { get; set; } = Colormap.Grayscale;
         public int SpectrogramWidth { get; set; } = (int)Math.Pow(2, 9);

@@ -41,21 +41,27 @@ namespace ASR_proto
     {
         static void Main(string[] args)
         {
+            //Tutorial.Variables_Placeholders();
+
+            
             try
             {
 
-                //string path = "3.wav";
+                //string path = "vlog.wav";
                 //Recorder recorder = new Recorder(null, path);
+                //Console.WriteLine("Start recording...");
                 //recorder.FinishRecord = () =>
                 //{
                 //    Console.ReadKey();
                 //};
                 //recorder.RecordAudioToFile();
                 //while (recorder.IsRecordContinue) { }
+                //Console.WriteLine("Finish recording...");
                 //SpectrogramBuilder spectrogramBuilder = new SpectrogramBuilder();
                 //spectrogramBuilder.ImagePath = "images\\viridis.jpg";
                 //spectrogramBuilder.ImageColormap = Colormap.Viridis;
                 //spectrogramBuilder.BuildSpectrogram(path);
+                //Console.WriteLine("Recording save");
 
                 string path = @"D:\ML\Speech recognition\NLP_diploma\uk";
                 DataPreparation.clipsPath = Path.Combine(path, "clips");
@@ -75,18 +81,18 @@ namespace ASR_proto
                     using (var csvReader = new CsvReader(_reader, myConfig))
                     {
                         while (csvReader.Read())
-                        { 
+                        {
                             var data = csvReader.GetRecord<SpeechData>();
                             preparator.Prepare(ref data);
                             trainData.Add(data);
-                            break;
+                            //break;
                         }
                     }
                 }
                 Console.WriteLine("Train data was loaded!");
                 Console.WriteLine(trainData.Count);
 
-                bool isFormedSpectrograms = true;
+                bool isFormedSpectrograms = false;
                 if (!isFormedSpectrograms)
                 {
                     int counter = 0;
@@ -100,8 +106,8 @@ namespace ASR_proto
                     Console.WriteLine("Spectrograms train data was created!");
                 }
 
-                TFModel model = new TFModel(trainData);
-                model.Train();
+                //TFModel model = new TFModel(trainData);
+                //model.Train();
             }
             catch (Exception ex)
             {
