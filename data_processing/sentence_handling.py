@@ -41,10 +41,29 @@ class LangCharHandling(LangHandling):
         return result
 
     def sentence_to_one_hots(self, sent):
+        """
+        Convert "sent" to one hots matrix by characters of language with indeces.
+
+        Example:
+        sent = "Московитам дозволено створити свою державу а татарам чеченцям – ні Але це – расизм"
+        obj = LangCharHandling(tokens)
+        sent_to_idxs = obj.sentence_to_indeces(sent, char_to_index)
+
+        :param sent:
+        :return:
+        """
         sent_to_idxs = self.sentence_to_indeces(sent)
         sent_to_idxs = torch.Tensor(sent_to_idxs).long()
         one_hots = F.one_hot(sent_to_idxs, num_classes=self.num_classes)
         return one_hots
+
+    def sentences_to_one_hots(self, sents):
+        result = []
+        for sent in sents:
+            result.append(self.sentence_to_one_hots(sent))
+        print(len(result))
+        print(result)
+        return torch.Tensor(result)
 
     def one_hots_to_sentence(self, one_hots):
         result = ""

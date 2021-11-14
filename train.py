@@ -26,6 +26,11 @@ print("Indeces to sentence:", idxs_to_sent)
 ds = CommonVoiceUkr(TRAIN_PATH, TRAIN_SPEC_PATH)
 train_dataloader = DataLoader(ds, shuffle=True, batch_size=1)
 
-train_features, train_labels = next(iter(train_dataloader))
-print(train_features.shape, train_labels)
-print(len(ds))
+for X, tgt in train_dataloader:
+    print(X.shape, tgt)
+
+    one_hots = ukr_lang_chars_handle.sentences_to_one_hots(tgt)
+    print(one_hots.shape)
+
+    # y = model(X, tgt)
+    break

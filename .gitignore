@@ -341,3 +341,4 @@ healthchecksdb
 /Тезисы.txt
 venv
 .ipynb_checkpoints/
+*.bat
