@@ -1,0 +1,2 @@
+from data_processing.sentence_handling import ukr_lang_chars_handle
+from data_processing.spectrogram_handling import CommonVoiceUkr
