@@ -237,9 +237,8 @@ class DecoderBlock(nn.Module):
     
     
 class Decoder(nn.Module):
-    def __init__(self):
+    def __init__(self, dropout=0.3):
         super().__init__()
-        # TODO: + linar modules to reshape decoder target to (1, 1, 64, 256)
         self.lin1 = nn.Linear(152, 256)
         self.swish1 = Swish()
         self.lin2 = nn.Linear(38, 64)
@@ -247,8 +246,10 @@ class Decoder(nn.Module):
         self.dec_blocks = nn.ModuleList([
             DecoderBlock(dim_shape_tgt=(1, 1, 64, 256), dim_shape_mem=(1, 1, 64, 256)) 
             for _ in range(4)])
-        self.lin_out = nn.Linear(64, 38)
-        self.softmax = nn.Softmax(dim=-1)
+        self.classifier = nn.Sequential(
+            nn.Linear(64, 38),
+            nn.Dropout(dropout),
+        )
         
     def forward(self, mem, tgt):
         y = tgt
@@ -263,10 +264,8 @@ class Decoder(nn.Module):
             y = dec(mem, y)
         
         y = y.transpose(-1, -2)
-        y = self.lin_out(y)
-        y = self.softmax(y)
-        print("y shape:", y.shape)
-        
+        y = self.classifier(y)
+        #print("y shape:", y.shape)
         return y
     
     

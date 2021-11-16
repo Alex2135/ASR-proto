@@ -3,6 +3,7 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.utils.rnn import pad_sequence
 
 import numpy as np
 import pandas as pd
@@ -40,6 +41,14 @@ class LangCharHandling(LangHandling):
         result = [self.token_to_index["<sos>"]] + result + [self.token_to_index["<eos>"]]
         return result
 
+    def sentences_to_indeces(self, sentences, sent_max_len):
+        result = [torch.Tensor(self.sentence_to_indeces(sent)).long()
+                   for sent in sentences]
+        result = pad_sequence(result, batch_first=True)
+        result = F.pad(result, (0, sent_max_len - result.shape[-1]), value=self.token_to_index['<eos>'])
+        return result
+
+
     def sentence_to_one_hots(self, sent):
         """
         Convert "sent" to one hots matrix by characters of language with indeces.
@@ -57,13 +66,12 @@ class LangCharHandling(LangHandling):
         one_hots = F.one_hot(sent_to_idxs, num_classes=self.num_classes)
         return one_hots
 
-    def sentences_to_one_hots(self, sents):
-        result = []
-        for sent in sents:
-            result.append(self.sentence_to_one_hots(sent))
-        print(len(result))
-        print(result)
-        return torch.Tensor(result)
+    def sentences_to_one_hots(self, sents, sent_max_len):
+        sents_one_hots = [self.sentence_to_one_hots(sent) for sent in sents]
+        sents_one_hots = [F.pad(one_hot, (0, 0, 0, sent_max_len - one_hot.shape[0]))
+                          for one_hot in sents_one_hots]
+        result = torch.stack(sents_one_hots)
+        return result
 
     def one_hots_to_sentence(self, one_hots):
         result = ""
