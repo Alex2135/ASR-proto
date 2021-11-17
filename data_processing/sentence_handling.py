@@ -41,11 +41,11 @@ class LangCharHandling(LangHandling):
         result = [self.token_to_index["<sos>"]] + result + [self.token_to_index["<eos>"]]
         return result
 
-    def sentences_to_indeces(self, sentences, sent_max_len):
+    def sentences_to_indeces(self, sentences):
         result = [torch.Tensor(self.sentence_to_indeces(sent)).long()
                    for sent in sentences]
-        result = pad_sequence(result, batch_first=True)
-        result = F.pad(result, (0, sent_max_len - result.shape[-1]), value=self.token_to_index['<eos>'])
+        result = pad_sequence(result, batch_first=True, padding_value=self.token_to_index["<eos>"])
+        #result = F.pad(result, (0, sent_max_len - result.shape[-1]), value=self.token_to_index['<eos>'])
         return result
 
 
@@ -71,9 +71,13 @@ class LangCharHandling(LangHandling):
         sents_one_hots = [F.pad(one_hot, (0, 0, 0, sent_max_len - one_hot.shape[0]))
                           for one_hot in sents_one_hots]
         result = torch.stack(sents_one_hots)
+        b, l, d = result.shape
+        result = result.view(b, 1, d, l)
         return result
 
     def one_hots_to_sentence(self, one_hots):
+        b, c, h, w = one_hots.shape
+        one_hots = one_hots.view(h, w)
         result = ""
         idxs = self.onehot_matrix_to_idxs(one_hots)
         for index in idxs:

@@ -14,7 +14,12 @@ from torch.utils.data import Dataset
 
 
 class CommonVoiceUkr(Dataset):
-    def __init__(self, txt_path='filelist.txt', img_dir='data', pad_size=1024, transform=None):
+    def __init__(self,
+                 txt_path='filelist.txt',
+                 img_dir='data',
+                 pad_size=1024,
+                 transform=None,
+                 batch_size=1):
         """
         Initialize data set as a list of IDs corresponding to each item of data set
 
@@ -23,9 +28,11 @@ class CommonVoiceUkr(Dataset):
         :param transform: apply some transforms like cropping, rotating, etc on input image
         """
         df = pd.read_csv(txt_path, index_col=0)
+        n = len(df)
+        df = df[:(n - n%batch_size)]
         self.speech_text = df["sentence"]
         self.img_names = df["spectro_path"]
-        self.pad_size = 1024
+        self.pad_size = pad_size
         self.txt_path = txt_path
         self.img_dir = img_dir
         self.transform = transform

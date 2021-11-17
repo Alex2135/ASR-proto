@@ -66,28 +66,30 @@ class LFFN(nn.Module):
     
 
 class LightAttention(nn.Module):
-    def __init__(self, dim_input_q, dim_input_kv, dim_q, dim_k, with_mask=False):
+    def __init__(self, dim_input_q, dim_input_kv, dim_q, dim_k, device="cpu", with_mask=False):
         super().__init__()
+        self.device = device
         self.with_mask = with_mask
         self.softmax_col = nn.Softmax(dim=-1)
         self.softmax_row = nn.Softmax(dim=-2)
         self.W_q = nn.Linear(in_features=dim_input_q, out_features=dim_q)
         self.W_k = nn.Linear(in_features=dim_input_kv, out_features=dim_k)
         self.W_v = nn.Linear(in_features=dim_input_kv, out_features=dim_k)
-        self.d_q = torch.pow(torch.Tensor([dim_q]), 1/4)
-        self.d_k = torch.pow(torch.Tensor([dim_k]), 1/4)
-        
+        self.d_q = torch.pow(torch.Tensor([dim_q]).to(device), 1/4)
+        self.d_k = torch.pow(torch.Tensor([dim_k]).to(device), 1/4)
+
     def mask(self, dim: (int, int)) -> Tensor :
         a, b = dim
         mask = torch.ones(b, a)
         mask = torch.triu(mask, diagonal=0)
         mask = torch.log(mask.T)
-        return mask
+        return mask.to(self.device)
         
     def forward(self, x_q, x_k, x_v):
         Q = self.W_q(x_q)
         K = self.W_k(x_k)
         V = self.W_v(x_v)
+
         if self.with_mask == True:
             Q += self.mask(Q.shape[-2:])
         A = self.softmax_row(Q / self.d_q)
@@ -104,6 +106,7 @@ class MHLA(nn.Module):
                  dim_input_kv,
                  dim_q = 64,
                  dim_k = 64,
+                 device="cpu",
                  mask=False
                 ):
         """
@@ -111,7 +114,7 @@ class MHLA(nn.Module):
         dim_input - if shape is (B, C, H, W), then dim_input is W
         """
         super().__init__()
-        heads = [LightAttention(dim_input_q, dim_input_kv, dim_q, dim_k, mask) for _ in range(num_heads)]
+        heads = [LightAttention(dim_input_q, dim_input_kv, dim_q, dim_k, device, mask) for _ in range(num_heads)]
         self.heads = nn.ModuleList(heads)                
         self.W_o = nn.Linear(dim_k*num_heads, dim_input_kv)
         
@@ -186,10 +189,10 @@ class ConvModule(nn.Module):
     
     
 class LAC(nn.Module):
-    def __init__(self, dim_B=1, dim_C=1, dim_H=64, dim_W=256):
+    def __init__(self, dim_B=1, dim_C=1, dim_H=64, dim_W=256, device="cpu"):
         super().__init__()
         self.lffn1 = LFFN(inputs_dim=(dim_B, dim_C, dim_H, dim_W), dim_hid=1024)
-        self.mhlsa = MHLA(num_heads=4, dim_input_q=dim_W, dim_input_kv=dim_W)    
+        self.mhlsa = MHLA(num_heads=4, dim_input_q=dim_W, dim_input_kv=dim_W, device=device)
         self.conv_module = ConvModule(dim_C, dim_H, dim_W)
         self.lffn2 = LFFN(inputs_dim=(dim_B, dim_C, dim_H, dim_W), dim_hid=1024)
         self.ln = nn.LayerNorm([dim_C, dim_H, dim_W])
@@ -205,9 +208,9 @@ class LAC(nn.Module):
     
     
 class Encoder(nn.Module):
-    def __init__(self, lacs_n=2):
+    def __init__(self, lacs_n=2, device="cpu"):
         super().__init__()
-        self.lacs = nn.Sequential(*[LAC() for i in range(lacs_n)])
+        self.lacs = nn.Sequential(*[LAC(device=device) for i in range(lacs_n)])
         
     def forward(self, inputs):
         x = self.lacs(inputs)
@@ -215,13 +218,13 @@ class Encoder(nn.Module):
     
 
 class DecoderBlock(nn.Module):
-    def __init__(self, dim_shape_tgt, dim_shape_mem):
+    def __init__(self, dim_shape_tgt, dim_shape_mem, device="cpu"):
         super().__init__()
         dim_B, dim_C, dim_H, dim_tgt = dim_shape_tgt
         dim_mem = dim_shape_mem[-1]
-        self.mhla_with_mask = MHLA(num_heads=2, dim_input_q=dim_tgt, dim_input_kv=dim_tgt, mask=True)
+        self.mhla_with_mask = MHLA(num_heads=2, dim_input_q=dim_tgt, dim_input_kv=dim_tgt, mask=True, device=device)
         self.ln1 = nn.LayerNorm([dim_C, dim_H, dim_tgt])
-        self.mhla_with_memory = MHLA(num_heads=2, dim_input_q=dim_tgt, dim_input_kv=dim_mem)
+        self.mhla_with_memory = MHLA(num_heads=2, dim_input_q=dim_tgt, dim_input_kv=dim_mem, device=device)
         self.ln2 = nn.LayerNorm([dim_C, dim_H, dim_mem])
         self.lffn = LFFN(inputs_dim=(dim_B, dim_C, dim_H, dim_mem), dim_hid=1024)
         self.ln3 = nn.LayerNorm([dim_C, dim_H, dim_mem])
@@ -237,22 +240,23 @@ class DecoderBlock(nn.Module):
     
     
 class Decoder(nn.Module):
-    def __init__(self, dropout=0.3):
+    def __init__(self, dropout=0.3, device="cpu"):
         super().__init__()
-        self.lin1 = nn.Linear(152, 256)
+        self.device = device
+        self.lin1 = nn.Linear(152, 256).to(device)
         self.swish1 = Swish()
-        self.lin2 = nn.Linear(38, 64)
+        self.lin2 = nn.Linear(38, 64).to(device)
         self.swish2 = Swish()
         self.dec_blocks = nn.ModuleList([
-            DecoderBlock(dim_shape_tgt=(1, 1, 64, 256), dim_shape_mem=(1, 1, 64, 256)) 
+            DecoderBlock(dim_shape_tgt=(1, 1, 64, 256), dim_shape_mem=(1, 1, 64, 256), device=device)
             for _ in range(4)])
         self.classifier = nn.Sequential(
-            nn.Linear(64, 38),
+            nn.Linear(64, 38).to(device),
             nn.Dropout(dropout),
         )
         
     def forward(self, mem, tgt):
-        y = tgt
+        y = tgt.to(self.device)
         y = self.lin1(y)
         y = self.swish1(y)
         y = y.transpose(-1, -2)
@@ -265,12 +269,11 @@ class Decoder(nn.Module):
         
         y = y.transpose(-1, -2)
         y = self.classifier(y)
-        #print("y shape:", y.shape)
         return y
     
     
 class Conformer(nn.Module):
-    def __init__(self, lacs_n=2):
+    def __init__(self, lacs_n=2, device="cpu"):
         super().__init__()
         self.input_preprocess = nn.Sequential(
             nn.Conv2d(in_channels=1, out_channels=1, kernel_size=3, stride=2),
@@ -280,12 +283,19 @@ class Conformer(nn.Module):
         )
         self.pos_enc_inp = AbsolutePositionEncoding()
         self.pos_enc_out = AbsolutePositionEncoding()
-        self.encoder = Encoder(lacs_n)
-        self.decoder = Decoder()
-        
+        self.encoder = Encoder(lacs_n, device=device)
+        self.decoder = Decoder(device=device)
+        self.device = device
+        self.to(device)
+
+    def to(self, device, *args, **kwargs):
+        self = super().to(device, *args, **kwargs)
+        self.device = device
+        return self
+
     def forward(self, inputs, tgt):
         x = self.input_preprocess(inputs)
-        x = x + self.pos_enc_inp(x)
+        x = x + self.pos_enc_inp(x).to(self.device)
         x = self.encoder(x)        
         y = self.pos_enc_out(tgt)
         y = self.decoder(x, y)

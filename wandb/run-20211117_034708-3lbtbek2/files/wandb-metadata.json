@@ -1,0 +1,24 @@
+{
+    "os": "Windows-10-10.0.19041-SP0",
+    "python": "3.9.2",
+    "heartbeatAt": "2021-11-17T01:47:09.797094",
+    "startedAt": "2021-11-17T01:47:08.648921",
+    "docker": null,
+    "gpu": "NVIDIA GeForce GTX 1050 Ti",
+    "gpu_count": 1,
+    "cpu_count": 16,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "D:\\ML\\Speech recognition\\NLP_diploma\\ASR proto\\ASR proto\\train.py",
+    "codePath": "train.py",
+    "git": {
+        "remote": "https://github.com/Alex2135/ASR-proto.git",
+        "commit": "c976a09f9f95408ac6174ae1da97619c55835ee6"
+    },
+    "email": "leha3521@gmail.com",
+    "root": "D:/ML/Speech recognition/NLP_diploma/ASR proto/ASR proto",
+    "host": "Smarty",
+    "username": "Alex",
+    "executable": "D:\\ML\\Speech recognition\\NLP_diploma\\ASR proto\\ASR proto\\venv\\Scripts\\python.exe"
+}
