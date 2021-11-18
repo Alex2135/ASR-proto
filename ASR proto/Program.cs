@@ -65,13 +65,14 @@ namespace ASR_proto
 
                 string path = @"D:\ML\Speech recognition\NLP_diploma\uk";
                 DataPreparation.clipsPath = Path.Combine(path, "clips");
-                DataPreparation.spectrogramsPath = Path.Combine(path, "train_spectrograms");
-                path = Path.Combine(path, "train.tsv");
+                DataPreparation.spectrogramsPath = Path.Combine(path, "test_spectrograms");
+                path = Path.Combine(path, "test.tsv");
                 Console.OutputEncoding = System.Text.Encoding.UTF8;
                 List<SpeechData> trainData = new List<SpeechData>();
                 var preparator = new DataPreparation();
 
-                // Get data from train.tsv
+                // Get data from .tsv file
+                Console.WriteLine($"Loading data from: {path}");
                 using (var _reader = new StreamReader(path))
                 {
 
@@ -103,7 +104,7 @@ namespace ASR_proto
                         if (counter % 400 == 0)
                             Console.WriteLine($"{counter} audio files processed");
                     }
-                    Console.WriteLine("Spectrograms train data was created!");
+                    Console.WriteLine("Spectrograms data was created!");
                 }
 
                 //TFModel model = new TFModel(trainData);

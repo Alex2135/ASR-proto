@@ -208,9 +208,9 @@ class LAC(nn.Module):
     
     
 class Encoder(nn.Module):
-    def __init__(self, lacs_n=2, device="cpu"):
+    def __init__(self, n_encoders=2, device="cpu"):
         super().__init__()
-        self.lacs = nn.Sequential(*[LAC(device=device) for i in range(lacs_n)])
+        self.lacs = nn.Sequential(*[LAC(device=device) for i in range(n_encoders)])
         
     def forward(self, inputs):
         x = self.lacs(inputs)
@@ -240,7 +240,7 @@ class DecoderBlock(nn.Module):
     
     
 class Decoder(nn.Module):
-    def __init__(self, dropout=0.3, device="cpu"):
+    def __init__(self, dropout=0.3, device="cpu", n_decoders=4):
         super().__init__()
         self.device = device
         self.lin1 = nn.Linear(152, 256).to(device)
@@ -249,7 +249,7 @@ class Decoder(nn.Module):
         self.swish2 = Swish()
         self.dec_blocks = nn.ModuleList([
             DecoderBlock(dim_shape_tgt=(1, 1, 64, 256), dim_shape_mem=(1, 1, 64, 256), device=device)
-            for _ in range(4)])
+            for _ in range(n_decoders)])
         self.classifier = nn.Sequential(
             nn.Linear(64, 38).to(device),
             nn.Dropout(dropout),
@@ -273,7 +273,7 @@ class Decoder(nn.Module):
     
     
 class Conformer(nn.Module):
-    def __init__(self, lacs_n=2, device="cpu"):
+    def __init__(self, n_encoders=2, n_decoders=2, device="cpu"):
         super().__init__()
         self.input_preprocess = nn.Sequential(
             nn.Conv2d(in_channels=1, out_channels=1, kernel_size=3, stride=2),
@@ -283,8 +283,8 @@ class Conformer(nn.Module):
         )
         self.pos_enc_inp = AbsolutePositionEncoding()
         self.pos_enc_out = AbsolutePositionEncoding()
-        self.encoder = Encoder(lacs_n, device=device)
-        self.decoder = Decoder(device=device)
+        self.encoder = Encoder(n_encoders=n_encoders, device=device)
+        self.decoder = Decoder(n_decoders=n_decoders, device=device)
         self.device = device
         self.to(device)
 

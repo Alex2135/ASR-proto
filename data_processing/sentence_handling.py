@@ -68,20 +68,25 @@ class LangCharHandling(LangHandling):
 
     def sentences_to_one_hots(self, sents, sent_max_len):
         sents_one_hots = [self.sentence_to_one_hots(sent) for sent in sents]
-        sents_one_hots = [F.pad(one_hot, (0, 0, 0, sent_max_len - one_hot.shape[0]))
+        sents_one_hots = [F.pad(one_hot, (0, 0, 0, sent_max_len - one_hot.shape[0]), value=0)
                           for one_hot in sents_one_hots]
         result = torch.stack(sents_one_hots)
         b, l, d = result.shape
         result = result.view(b, 1, d, l)
         return result
 
-    def one_hots_to_sentence(self, one_hots):
-        b, c, h, w = one_hots.shape
-        one_hots = one_hots.view(h, w)
-        result = ""
-        idxs = self.onehot_matrix_to_idxs(one_hots)
-        for index in idxs:
-            result += self.index_to_token[int(index)]
+    def one_hots_to_sentences(self, one_hots):
+        b, _, h, w = one_hots.shape
+        one_hots = one_hots.view(b, w, h)
+        result = []
+        idxs_batch = []
+        for one_hot in one_hots:
+            idxs_batch.append(self.onehot_matrix_to_idxs(one_hot))
+        for idxs in idxs_batch:
+            sent = ""
+            for index in idxs:
+                sent += self.index_to_token[int(index)]
+            result.append(sent)
         return result
 
     def onehot_matrix_to_idxs(self, one_hots):
@@ -93,7 +98,15 @@ class LangCharHandling(LangHandling):
         return result
 
 
-extra_tokens = ["<blank>", "<sos>", "<eos>", "<unk>", " "]
+def CER(indeces1, indeces2):
+    assert len(indeces1) == len(indeces2)
+
+    n = len(indeces1)
+    char_sum = torch.sum(indeces1 != indeces2)
+    return char_sum / n
+
+
+extra_tokens = ["<eos>", "<blank>", "<sos>", "<unk>", " "]
 tokens = extra_tokens + ['а', 'б', 'в', 'г', 'д',
         'е', 'ж', 'з', 'и', 'й', 'к', 'л', 'м',
         'н', 'о', 'п', 'р', 'с', 'т', 'у', 'ф',
