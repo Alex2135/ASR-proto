@@ -113,6 +113,7 @@ class MHLA(nn.Module):
         Args:
         dim_input - if shape is (B, C, H, W), then dim_input is W
         """
+        #TODO: Make parallel heads like channel dim
         super().__init__()
         heads = [LightAttention(dim_input_q, dim_input_kv, dim_q, dim_k, device, mask) for _ in range(num_heads)]
         self.heads = nn.ModuleList(heads)                
@@ -159,9 +160,9 @@ class PointWiseConv(nn.Module):
 class ConvModule(nn.Module):
     def __init__(self, dim_C, dim_H, dim_W, dropout=0.3):
         super().__init__()
-        self.ln1 = nn.LayerNorm([dim_H, dim_W*dim_C])
+        self.ln1 = nn.LayerNorm(dim_W)
         self.pw_conv1 = PointWiseConv(chan_in=dim_C)
-        self.glu = GLU(-2)
+        self.glu = GLU(dim=-2)
         self.dw_conv1d = DepthWiseConv1d(dim_C, dim_C*2, kernel_size=3, padding=1)
         self.bn = nn.BatchNorm2d(dim_C)
         self.swish = Swish()
@@ -192,10 +193,10 @@ class LAC(nn.Module):
     def __init__(self, dim_B=1, dim_C=1, dim_H=64, dim_W=256, device="cpu"):
         super().__init__()
         self.lffn1 = LFFN(inputs_dim=(dim_B, dim_C, dim_H, dim_W), dim_hid=1024)
-        self.mhlsa = MHLA(num_heads=4, dim_input_q=dim_W, dim_input_kv=dim_W, device=device)
+        self.mhlsa = MHLA(num_heads=8, dim_input_q=dim_W, dim_input_kv=dim_W, device=device)
         self.conv_module = ConvModule(dim_C, dim_H, dim_W)
         self.lffn2 = LFFN(inputs_dim=(dim_B, dim_C, dim_H, dim_W), dim_hid=1024)
-        self.ln = nn.LayerNorm([dim_C, dim_H, dim_W])
+        self.ln = nn.LayerNorm(dim_W)
         
     def forward(self, inputs):
         x = inputs
@@ -223,11 +224,11 @@ class DecoderBlock(nn.Module):
         dim_B, dim_C, dim_H, dim_tgt = dim_shape_tgt
         dim_mem = dim_shape_mem[-1]
         self.mhla_with_mask = MHLA(num_heads=2, dim_input_q=dim_tgt, dim_input_kv=dim_tgt, mask=True, device=device)
-        self.ln1 = nn.LayerNorm([dim_C, dim_H, dim_tgt])
+        self.ln1 = nn.LayerNorm(dim_tgt)
         self.mhla_with_memory = MHLA(num_heads=2, dim_input_q=dim_tgt, dim_input_kv=dim_mem, device=device)
-        self.ln2 = nn.LayerNorm([dim_C, dim_H, dim_mem])
+        self.ln2 = nn.LayerNorm(dim_tgt)
         self.lffn = LFFN(inputs_dim=(dim_B, dim_C, dim_H, dim_mem), dim_hid=1024)
-        self.ln3 = nn.LayerNorm([dim_C, dim_H, dim_mem])
+        self.ln3 = nn.LayerNorm(dim_tgt)
         
     def forward(self, mem, y):
         y = y + self.mhla_with_mask(y, y, y)
@@ -244,9 +245,9 @@ class Decoder(nn.Module):
         super().__init__()
         self.device = device
         self.lin1 = nn.Linear(152, 256).to(device)
-        self.swish1 = Swish()
+        self.relu1 = nn.ReLU()
         self.lin2 = nn.Linear(38, 64).to(device)
-        self.swish2 = Swish()
+        self.relu2 = nn.ReLU()
         self.dec_blocks = nn.ModuleList([
             DecoderBlock(dim_shape_tgt=(1, 1, 64, 256), dim_shape_mem=(1, 1, 64, 256), device=device)
             for _ in range(n_decoders)])
@@ -258,10 +259,10 @@ class Decoder(nn.Module):
     def forward(self, mem, tgt):
         y = tgt.to(self.device)
         y = self.lin1(y)
-        y = self.swish1(y)
+        y = self.relu1(y)
         y = y.transpose(-1, -2)
         y = self.lin2(y)
-        y = self.swish2(y)
+        y = self.relu2(y)
         y = y.transpose(-1, -2)
         
         for dec in self.dec_blocks:
@@ -273,7 +274,7 @@ class Decoder(nn.Module):
     
     
 class Conformer(nn.Module):
-    def __init__(self, n_encoders=2, n_decoders=2, device="cpu"):
+    def __init__(self, n_encoders=2, n_decoders=2, device="cpu", dropout=0.3):
         super().__init__()
         self.input_preprocess = nn.Sequential(
             nn.Conv2d(in_channels=1, out_channels=1, kernel_size=3, stride=2),
@@ -284,6 +285,16 @@ class Conformer(nn.Module):
         self.pos_enc_inp = AbsolutePositionEncoding()
         self.pos_enc_out = AbsolutePositionEncoding()
         self.encoder = Encoder(n_encoders=n_encoders, device=device)
+        self.enc_lin1 = nn.Sequential(
+            nn.Linear(64, 38),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+        )
+        self.enc_lin2 = nn.Sequential(
+            nn.Linear(256, 152),
+            nn.ReLU(),
+            nn.LogSoftmax(dim=-1)
+        )
         self.decoder = Decoder(n_decoders=n_decoders, device=device)
         self.device = device
         self.to(device)
@@ -299,5 +310,9 @@ class Conformer(nn.Module):
         x = self.encoder(x)        
         y = self.pos_enc_out(tgt)
         y = self.decoder(x, y)
-        
-        return y
+        x = x.transpose(-1, -2).contiguous()
+        x = self.enc_lin1(x)
+        x = x.transpose(-1, -2).contiguous()
+        x = self.enc_lin2(x)
+
+        return x, y

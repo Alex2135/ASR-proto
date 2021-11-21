@@ -9,8 +9,8 @@ import pprint
 
 device = "cpu"
 
-PATH = os.path.join(DATA_DIR, "model_1.pt")
-model = con(n_encoders=8, n_decoders=8, device=device)
+PATH = os.path.join(DATA_DIR, "model_2.pt")
+model = con(n_encoders=CONFIG["n_encoders"], n_decoders=CONFIG["n_decoders"], device=device)
 model.load_state_dict(torch.load(PATH))
 
 model.eval()
