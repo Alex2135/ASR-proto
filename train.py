@@ -63,7 +63,7 @@ try:
             emb, output = model(X, one_hots)  # return (batch, _, time, n_class)
             b, cnls, t, clss = output.shape
             output = output.view(t * cnls, b, clss)  # (time, batch, n_class)
-            output = F.log_softmax(output, dim=2)
+            output = F.log_softmax(output, dim=-1)
             indeces = ukr_lang_chars_handle.sentences_to_indeces(tgt).to(device)
 
             input_lengths = torch.full(size=(BATCH_SIZE,), fill_value=t, dtype=torch.long).to(device)
@@ -79,6 +79,7 @@ try:
             optimizer.step()
             scheduler.step()
 
+            #print(f"\n{ctc_loss.item()=}, {torch.log(ctc_loss)}\n{ce_loss.item()=}, {torch.log(ce_loss)}")
             running_loss.append(loss.cpu().detach().numpy())
             losses_per_phase.append(loss.cpu().detach().numpy())
             # wandb.log({"loss": loss})
@@ -92,7 +93,7 @@ try:
                 print("Is inf in output:", torch.sum(torch.isinf(output)))
                 pprint.pprint(output)
                 break
-            if (idx + 1) % 5 == 0:  # print every 200 mini-batches
+            if (idx + 1) % 50 == 0:  # print every 200 mini-batches
                 print(f"Epoch: {epoch}, Last loss: {loss.item():.4f}, Loss phase mean: {np.mean(np.array(losses_per_phase)):.4f}")
                 losses_per_phase = []
             optimizer.zero_grad()
@@ -100,6 +101,6 @@ except Exception as e:
     print(e)
 finally:
     import os
-    PATH = os.path.join(DATA_DIR, "model_2.pt")
+    PATH = os.path.join(DATA_DIR, "model_1.pt")
     print(PATH)
     torch.save(model.state_dict(), PATH)

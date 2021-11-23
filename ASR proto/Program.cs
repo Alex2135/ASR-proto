@@ -39,76 +39,115 @@ namespace ASR_proto
 
     class Program
     {
-        static void Main(string[] args)
+        public static void ConvertMP3sToSpectrogram(
+            string dataDir = @"D:\ML\Speech recognition\NLP_diploma\uk",
+            string clipsDir = "clips",
+            string spectroDir = "test_spectrograms",
+            string dataSourceFilePath = "test.tsv")
         {
-            //Tutorial.Variables_Placeholders();
+            string path = dataDir;
+            DataPreparation.clipsPath = Path.Combine(path, clipsDir);
+            DataPreparation.spectrogramsPath = Path.Combine(path, spectroDir);
+            path = Path.Combine(path, dataSourceFilePath);
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+            List<SpeechData> trainData = new List<SpeechData>();
+            var preparator = new DataPreparation();
 
-            
+            // Get data from .tsv file
+            Console.WriteLine($"Loading data from: {path}");
+            using (var _reader = new StreamReader(path))
+            {
+
+                CsvConfiguration myConfig = new CsvConfiguration(CultureInfo.InvariantCulture);
+                myConfig.Delimiter = "\t";
+                myConfig.Encoding = System.Text.Encoding.UTF8;
+                using (var csvReader = new CsvReader(_reader, myConfig))
+                {
+                    while (csvReader.Read())
+                    {
+                        var data = csvReader.GetRecord<SpeechData>();
+                        preparator.Prepare(ref data);
+                        trainData.Add(data);
+                        //break;
+                    }
+                }
+            }
+            Console.WriteLine("Train data was loaded!");
+            Console.WriteLine(trainData.Count);
+
+            bool isFormedSpectrograms = false;
+            if (!isFormedSpectrograms)
+            {
+                int counter = 0;
+                foreach (var sample in trainData)
+                {
+                    preparator.GenerateSpectrogram(sample);
+                    counter++;
+                    if (counter % 400 == 0)
+                        Console.WriteLine($"{counter} audio files processed");
+                }
+                Console.WriteLine("Spectrograms data was created!");
+            }
+        }
+
+        public static void RecordAudioFromMicro(
+            string audioFileName = "vlog.wav",
+            string imageFilePath = "images\\viridis.jpg")
+        {
+            string path = audioFileName;
+            Recorder recorder = new Recorder(null, path);
+            Console.WriteLine("Start recording...");
+            recorder.FinishRecord = () =>
+            {
+                Console.ReadKey();
+            };
+            recorder.RecordAudioToFile();
+            while (recorder.IsRecordContinue) { }
+            Console.WriteLine("Finish recording...");
+            SpectrogramBuilder spectrogramBuilder = new SpectrogramBuilder();
+            spectrogramBuilder.ImagePath = imageFilePath;
+            spectrogramBuilder.ImageColormap = Colormap.Viridis; 
+            spectrogramBuilder.BuildSpectrogram(path);
+            Console.WriteLine($"Record save to: \"{audioFileName}\"");
+        }
+
+        static string GetRandomString(int length)
+        {
+            var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+            var stringChars = new char[length];
+            var random = new Random();
+
+            for (int i = 0; i < stringChars.Length; i++)
+            {
+                stringChars[i] = chars[random.Next(chars.Length)];
+            }
+
+            var finalString = new String(stringChars);
+            return finalString;
+        }
+
+        static void Main(string[] args)
+        {            
             try
             {
 
-                //string path = "vlog.wav";
-                //Recorder recorder = new Recorder(null, path);
-                //Console.WriteLine("Start recording...");
-                //recorder.FinishRecord = () =>
-                //{
-                //    Console.ReadKey();
-                //};
-                //recorder.RecordAudioToFile();
-                //while (recorder.IsRecordContinue) { }
-                //Console.WriteLine("Finish recording...");
-                //SpectrogramBuilder spectrogramBuilder = new SpectrogramBuilder();
-                //spectrogramBuilder.ImagePath = "images\\viridis.jpg";
-                //spectrogramBuilder.ImageColormap = Colormap.Viridis;
-                //spectrogramBuilder.BuildSpectrogram(path);
-                //Console.WriteLine("Recording save");
+                /*
+                 * 0. None
+                 * 1. "Запустити відео обтікання будинків"
+                    2. "запустити відео демонстрації вихорів"
+                    3. "запустити відео обтікання крила"
+                    4. "закрити відео
+                 */
 
-                string path = @"D:\ML\Speech recognition\NLP_diploma\uk";
-                DataPreparation.clipsPath = Path.Combine(path, "clips");
-                DataPreparation.spectrogramsPath = Path.Combine(path, "test_spectrograms");
-                path = Path.Combine(path, "test.tsv");
-                Console.OutputEncoding = System.Text.Encoding.UTF8;
-                List<SpeechData> trainData = new List<SpeechData>();
-                var preparator = new DataPreparation();
+                const string DATA_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk";
+                string fileName = $"4_{GetRandomString(12)}";
 
-                // Get data from .tsv file
-                Console.WriteLine($"Loading data from: {path}");
-                using (var _reader = new StreamReader(path))
-                {
+                RecordAudioFromMicro(
+                    audioFileName: Path.Combine(DATA_DIR, $"clips_classifire\\{fileName}.wav"),
+                    imageFilePath: Path.Combine(DATA_DIR, $"spectrograms_classifire\\{fileName}.jpg")
+                ) ;
 
-                    CsvConfiguration myConfig = new CsvConfiguration(CultureInfo.InvariantCulture);
-                    myConfig.Delimiter = "\t";
-                    myConfig.Encoding = System.Text.Encoding.UTF8;
-                    using (var csvReader = new CsvReader(_reader, myConfig))
-                    {
-                        while (csvReader.Read())
-                        {
-                            var data = csvReader.GetRecord<SpeechData>();
-                            preparator.Prepare(ref data);
-                            trainData.Add(data);
-                            //break;
-                        }
-                    }
-                }
-                Console.WriteLine("Train data was loaded!");
-                Console.WriteLine(trainData.Count);
-
-                bool isFormedSpectrograms = false;
-                if (!isFormedSpectrograms)
-                {
-                    int counter = 0;
-                    foreach (var sample in trainData)
-                    {
-                        preparator.GenerateSpectrogram(sample);
-                        counter++;
-                        if (counter % 400 == 0)
-                            Console.WriteLine($"{counter} audio files processed");
-                    }
-                    Console.WriteLine("Spectrograms data was created!");
-                }
-
-                //TFModel model = new TFModel(trainData);
-                //model.Train();
+                //ConvertMP3sToSpectrogram();
             }
             catch (Exception ex)
             {

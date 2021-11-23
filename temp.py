@@ -9,7 +9,7 @@ import pprint
 
 device = "cpu"
 
-PATH = os.path.join(DATA_DIR, "model_2.pt")
+PATH = os.path.join(DATA_DIR, "model_best.pt")
 model = con(n_encoders=CONFIG["n_encoders"], n_decoders=CONFIG["n_decoders"], device=device)
 model.load_state_dict(torch.load(PATH))
 
@@ -28,12 +28,21 @@ with torch.no_grad():
     print("tgt to one_hots shape:", tgt_one_hots.shape)
     print("tgt to one_hots:", ukr_lang_chars_handle.one_hots_to_sentences(tgt_one_hots))
 
-    out_data = model(X, tgt_one_hots.to(device))
-    out_data = F.softmax(out_data, dim=-1)
+    emb, out_data = model(X, tgt_one_hots.to(device))
+    emb = F.log_softmax(emb, dim=-1)
+    emb = emb.cpu()
+    out_data = F.log_softmax(out_data, dim=-1)
     out_data = out_data.cpu()
     print("\n\nOutput data shape:", out_data.shape)
     print("output:", out_data)
+
     out_data = out_data.transpose(-1, -2).contiguous()
     result = ukr_lang_chars_handle.one_hots_to_sentences(out_data)
+    pprint.pprint(len(result))
+    pprint.pprint(result)
+
+    pprint.pprint(out_data.shape)
+    print(emb.shape)
+    result = ukr_lang_chars_handle.one_hots_to_sentences(emb)
     pprint.pprint(len(result))
     pprint.pprint(result)

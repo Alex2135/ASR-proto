@@ -11,9 +11,9 @@ namespace ASR_proto
     class SpectrogramBuilder
     {
         public string ImagePath { get; set; } = "1.jpg";
-        public int FFTSize { get; set; } = 4096;
+        public int FFTSize { get; set; } = 4096; // 4096
         public int FFTStepSize { get; set; } = 512;
-        public double MaxFrequency { get; set; } = 44_100;
+        public double MaxFrequency { get; set; } = 5_000;
         public Colormap ImageColormap { get; set; } = Colormap.Grayscale;
         public int SpectrogramWidth { get; set; } = (int)Math.Pow(2, 9);
 
@@ -31,7 +31,7 @@ namespace ASR_proto
             double[] audio; int sampleRate;
             (audio, sampleRate) = ReadWAV(_wavPath);
 
-            var sg = new SpectrogramGenerator(sampleRate, fftSize: FFTStepSize, stepSize: FFTStepSize, maxFreq: MaxFrequency);
+            var sg = new SpectrogramGenerator(sampleRate, fftSize: FFTSize, stepSize: FFTStepSize, maxFreq: MaxFrequency);
             //sg.SetFixedWidth(SpectrogramWidth);
             sg.Add(audio);
             sg.SetColormap(ImageColormap);
