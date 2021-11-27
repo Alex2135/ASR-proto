@@ -57,24 +57,30 @@ try:
         print(f"Epoch №{epoch}")
         for idx, (X, tgt) in tqdm(enumerate(train_dataloader)):
 
-            one_hots = ukr_lang_chars_handle.sentences_to_one_hots(tgt, 152).to(device)
-            X = X.to(device)
+            tgt_text = tgt["text"]
+            tgt_class = tgt["label"]
 
-            emb, output = model(X, one_hots)  # return (batch, _, time, n_class)
+            one_hots = ukr_lang_chars_handle.sentences_to_one_hots(tgt_text, 152).to(device)
+            X = X.to(device) #
+
+            emb, output = model(X, one_hots)  # (batch, _, n_class, time), (batch, _, time, n_class)
             b, cnls, t, clss = output.shape
             output = output.view(t * cnls, b, clss)  # (time, batch, n_class)
             output = F.log_softmax(output, dim=-1)
-            indeces = ukr_lang_chars_handle.sentences_to_indeces(tgt).to(device)
+            indeces = ukr_lang_chars_handle.sentences_to_indeces(tgt_text).to(device)
 
             input_lengths = torch.full(size=(BATCH_SIZE,), fill_value=t, dtype=torch.long).to(device)
             target_lengths = torch.full(size=(BATCH_SIZE,), fill_value=indeces.shape[-1], dtype=torch.long).to(device)
             ctc_loss = ctc_criterion(output.to(device), indeces, input_lengths, target_lengths)
 
+            print(f"{output.shape=}")
+            break
             #print(f"\n{emb.shape=}\n{one_hots.shape=}")
-            emb, one_hots = eleminate_channels(emb.to(device)), eleminate_channels(one_hots.float())
-            ce_loss = ce_criterion(emb, one_hots)
+            #emb, one_hots = eleminate_channels(emb.to(device)), eleminate_channels(one_hots.float())
+            #ce_loss = ce_criterion(emb, one_hots)
 
-            loss = alpha_loss * torch.log(ce_loss) + (1-alpha_loss) * torch.log(ctc_loss)
+            #loss = alpha_loss * torch.log(ce_loss) + (1-alpha_loss) * torch.log(ctc_loss)
+            loss = ctc_loss
             loss.backward()
             optimizer.step()
             scheduler.step()
@@ -97,10 +103,9 @@ try:
                 print(f"Epoch: {epoch}, Last loss: {loss.item():.4f}, Loss phase mean: {np.mean(np.array(losses_per_phase)):.4f}")
                 losses_per_phase = []
             optimizer.zero_grad()
-except Exception as e:
-    print(e)
-finally:
     import os
     PATH = os.path.join(DATA_DIR, "model_1.pt")
     print(PATH)
     torch.save(model.state_dict(), PATH)
+except Exception as e:
+    print(e)

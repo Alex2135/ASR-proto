@@ -271,17 +271,36 @@ class Decoder(nn.Module):
         y = y.transpose(-1, -2)
         y = self.classifier(y)
         return y
-    
+
+class InputPreprocessor(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv_dim = nn.Sequential(
+            nn.Conv1d(in_channels=1024, out_channels=1024, kernel_size=2, stride=2),
+            nn.Conv1d(in_channels=1024, out_channels=1024, kernel_size=2, stride=3),
+            nn.Conv1d(in_channels=1024, out_channels=1024, kernel_size=2, stride=2)
+        )
+        self.conv_time = nn.Sequential(
+            nn.Conv1d(in_channels=64, out_channels=64, kernel_size=2, stride=2),
+            nn.Conv1d(in_channels=64, out_channels=64, kernel_size=2, stride=2)
+        )
+
+    def forward(self, inputs):
+        b, c, h, w = inputs.shape
+        X = inputs.view(b, c*h, w)
+        X = X.transpose(-1, -2).contiguous()
+        X = self.conv_dim(X)
+        X = X.transpose(-1, -2).contiguous()
+        X = self.conv_time(X)
+        b, h, w = X.shape
+        X = X.view(b, 1, h, w)
+        return X
+
     
 class Conformer(nn.Module):
     def __init__(self, n_encoders=2, n_decoders=2, device="cpu", dropout=0.3):
         super().__init__()
-        self.input_preprocess = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=1, kernel_size=3, stride=2),
-            Swish(),
-            nn.Conv2d(in_channels=1, out_channels=1, kernel_size=3, stride=2, padding=1),
-            Swish()
-        )
+        self.input_preprocess = InputPreprocessor()
         self.pos_enc_inp = AbsolutePositionEncoding()
         self.pos_enc_out = AbsolutePositionEncoding()
         self.encoder = Encoder(n_encoders=n_encoders, device=device)
@@ -316,3 +335,20 @@ class Conformer(nn.Module):
         x = self.enc_lin2(x)
 
         return x, y
+
+
+class CommandClassifier(Conformer):
+    def __init__(self, *args, **kwargs):
+        super(CommandClassifier, self).__init__(*args, **kwargs)
+        self.lin1 = nn.Sequential(nn.Linear(38 * 256, 2048), nn.ReLU()).to(kwargs["device"])
+        self.lin2 = nn.Sequential(nn.Linear(2048, 1024), nn.ReLU()).to(kwargs["device"])
+        self.lin3 = nn.Sequential(nn.Linear(1024, 5), nn.Softmax(dim=-1)).to(kwargs["device"])
+
+    def forward(self, inputs, tgt):
+        x, y = super(CommandClassifier, self).forward(inputs, tgt)
+        b, _, t, d = y.shape
+        out = y.view(b, t * d)
+        out = self.lin1(out)
+        out = self.lin2(out)
+        out = self.lin3(out)
+        return x, out

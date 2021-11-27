@@ -106,7 +106,7 @@ namespace ASR_proto
             Console.WriteLine("Finish recording...");
             SpectrogramBuilder spectrogramBuilder = new SpectrogramBuilder();
             spectrogramBuilder.ImagePath = imageFilePath;
-            spectrogramBuilder.ImageColormap = Colormap.Viridis; 
+            spectrogramBuilder.ImageColormap = Colormap.GrayscaleReversed; 
             spectrogramBuilder.BuildSpectrogram(path);
             Console.WriteLine($"Record save to: \"{audioFileName}\"");
         }
@@ -140,12 +140,28 @@ namespace ASR_proto
                  */
 
                 const string DATA_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk";
+                const string CLIPS_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk\clips";//@"D:\ML\Speech recognition\NLP_diploma\uk\clips_classifire";
+                const string SPECTRO_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk\train_spectrograms";//@"D:\ML\Speech recognition\NLP_diploma\uk\spectrograms_classifire";
+
+                DataPreparation.clipsPath = CLIPS_DIR;
+                DataPreparation.spectrogramsPath = SPECTRO_DIR;
+
+                string[] audios = Directory.GetFiles(CLIPS_DIR, "*.mp3");
+
+                foreach (string path in audios)
+                {
+                    DataPreparation.GenerateSpectrogram(path);
+                    Console.WriteLine(path);
+                }
+
+                /*
                 string fileName = $"4_{GetRandomString(12)}";
 
                 RecordAudioFromMicro(
                     audioFileName: Path.Combine(DATA_DIR, $"clips_classifire\\{fileName}.wav"),
                     imageFilePath: Path.Combine(DATA_DIR, $"spectrograms_classifire\\{fileName}.jpg")
                 ) ;
+                */
 
                 //ConvertMP3sToSpectrogram();
             }

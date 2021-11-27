@@ -9,7 +9,7 @@ import pprint
 
 device = "cpu"
 
-PATH = os.path.join(DATA_DIR, "model_best.pt")
+PATH = os.path.join(DATA_DIR, "model_1.pt")
 model = con(n_encoders=CONFIG["n_encoders"], n_decoders=CONFIG["n_decoders"], device=device)
 model.load_state_dict(torch.load(PATH))
 
@@ -19,6 +19,7 @@ train_dataloader = DataLoader(ds, shuffle=True, batch_size=1)
 
 with torch.no_grad():
     X, tgt = next(iter(train_dataloader))
+    tgt = tgt["text"]
     X = X.to(device)
     print("Target:", tgt)
     print("X shape:", X.shape)

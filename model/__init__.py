@@ -1,3 +1,3 @@
-from model.conformer import Conformer
+from model.conformer import Conformer, CommandClassifier
 from model.scheduler import get_cosine_schedule_with_warmup
 from model.metrics import MaskedSoftmaxCELoss

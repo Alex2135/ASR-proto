@@ -23,6 +23,18 @@ namespace ASR_proto
             _sample.sentence = result.Trim();
         }
 
+        public static void GenerateSpectrogram(string _samplePath)
+        {
+            string clipPath = Path.Combine(clipsPath, _samplePath);
+            string baseFileName = Path.GetFileNameWithoutExtension(_samplePath);
+            string imgPath = Path.Combine(spectrogramsPath, baseFileName + ".jpg");
+
+            SpectrogramBuilder spectrogramBuilder = new SpectrogramBuilder();
+            spectrogramBuilder.ImagePath = imgPath;
+            spectrogramBuilder.ImageColormap = Colormap.Greens;
+            spectrogramBuilder.BuildSpectrogram(clipPath);
+        }
+
         public void GenerateSpectrogram(SpeechData _sample)
         {
             string clipPath = Path.Combine(clipsPath, _sample.path);

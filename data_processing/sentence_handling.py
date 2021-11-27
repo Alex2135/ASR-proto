@@ -48,7 +48,6 @@ class LangCharHandling(LangHandling):
         #result = F.pad(result, (0, sent_max_len - result.shape[-1]), value=self.token_to_index['<eos>'])
         return result
 
-
     def sentence_to_one_hots(self, sent):
         """
         Convert "sent" to one hots matrix by characters of language with indeces.

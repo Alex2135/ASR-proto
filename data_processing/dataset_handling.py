@@ -17,7 +17,8 @@ class CommonVoiceUkr(Dataset):
     def __init__(self,
                  txt_path='filelist.txt',
                  img_dir='data',
-                 pad_size=1024,
+                 pad_dim1=768,
+                 pad_dim2=1024,
                  transform=None,
                  batch_size=1):
         """
@@ -32,7 +33,9 @@ class CommonVoiceUkr(Dataset):
         df = df[:(n - n%batch_size)]
         self.speech_text = df["sentence"]
         self.img_names = df["spectro_path"]
-        self.pad_size = pad_size
+        self.class_labels = df["class"]
+        self.pad_dim1 = pad_dim1
+        self.pad_dim2 = pad_dim2
         self.txt_path = txt_path
         self.img_dir = img_dir
         self.transform = transform
@@ -63,11 +66,14 @@ class CommonVoiceUkr(Dataset):
         image = Image.open(os.path.join(self.img_dir, name)).convert("L")
         return image
 
-    def pad_spectro_length(self, X):
+    def pad_spectro(self, X):
         T = X.shape[-1]
-        half_pad = (self.pad_size - T) // 2
+        half_pad = (self.pad_dim2 - T) // 2
         left, right = (half_pad, half_pad) if T % 2 == 0 else (half_pad, half_pad + 1)
-        X = F.pad(X, (left, right))
+
+        D = X.shape[-2]
+        top = self.pad_dim1 - D
+        X = F.pad(X, (left, right, top, 0))
         return X
 
     def __len__(self):
@@ -96,14 +102,15 @@ class CommonVoiceUkr(Dataset):
             X = self.get_image_from_folder(self.img_names[index])
 
         # Get you label here using available pandas functions
-        Y = self.speech_text[index]
+        Y = {
+            "text": self.speech_text[index],
+            "label": self.class_labels[index]
+        }
 
         if self.transform is not None:
             X = self.transform(X)
         else:
             X = self.to_tensor(X)
-
-        X = self.pad_spectro_length(X)
-
+        X = self.pad_spectro(X)
         return X, Y
 
