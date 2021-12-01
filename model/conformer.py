@@ -63,67 +63,58 @@ class LFFN(nn.Module):
         x = self.E2(x)
         y = self.D2(x)
         return y
-    
 
-class LightAttention(nn.Module):
-    def __init__(self, dim_input_q, dim_input_kv, dim_q, dim_k, device="cpu", with_mask=False):
+
+class MHLA2(nn.Module):
+    def __init__(self,
+                 num_heads,
+                 dim_input_q,
+                 dim_input_kv,
+                 dim_q=16,
+                 dim_k=16,
+                 device="cpu",
+                 mask=False
+                 ):
+        """
+        Args:
+
+        """
         super().__init__()
-        self.device = device
-        self.with_mask = with_mask
+        self.device=device
+        self.with_mask = mask
+        self.W_Q = torch.ones((num_heads, dim_input_q, dim_q), device=device, requires_grad=True)
+        self.W_K = torch.ones((num_heads, dim_input_kv, dim_q), device=device, requires_grad=True)
+        self.W_V = torch.ones((num_heads, dim_input_kv, dim_q), device=device, requires_grad=True)
+        self.W_O = nn.Linear(dim_k * num_heads, dim_k * num_heads, bias=False)
+        nn.init.xavier_uniform_(self.W_Q)
+        nn.init.xavier_uniform_(self.W_K)
+        nn.init.xavier_uniform_(self.W_V)
+        self.d_q = torch.pow(torch.Tensor([dim_q]).to(device), 1 / 4)
+        self.d_k = torch.pow(torch.Tensor([dim_k]).to(device), 1 / 4)
         self.softmax_col = nn.Softmax(dim=-1)
         self.softmax_row = nn.Softmax(dim=-2)
-        self.W_q = nn.Linear(in_features=dim_input_q, out_features=dim_q)
-        self.W_k = nn.Linear(in_features=dim_input_kv, out_features=dim_k)
-        self.W_v = nn.Linear(in_features=dim_input_kv, out_features=dim_k)
-        self.d_q = torch.pow(torch.Tensor([dim_q]).to(device), 1/4)
-        self.d_k = torch.pow(torch.Tensor([dim_k]).to(device), 1/4)
 
-    def mask(self, dim: (int, int)) -> Tensor :
+    def mask(self, dim: (int, int)) -> Tensor:
         a, b = dim
         mask = torch.ones(b, a)
         mask = torch.triu(mask, diagonal=0)
         mask = torch.log(mask.T)
         return mask.to(self.device)
-        
-    def forward(self, x_q, x_k, x_v):
-        Q = self.W_q(x_q)
-        K = self.W_k(x_k)
-        V = self.W_v(x_v)
 
+    def forward(self, x_q, x_k, x_v):
+        Q = torch.matmul(x_q.transpose(-1, -2).contiguous(), self.W_Q)
+        K = torch.matmul(x_k.transpose(-1, -2).contiguous(), self.W_K)
+        V = torch.matmul(x_v.transpose(-1, -2).contiguous(), self.W_V)
         if self.with_mask == True:
             Q += self.mask(Q.shape[-2:])
-        A = self.softmax_row(Q / self.d_q)
-        B = torch.matmul(self.softmax_col(K.transpose(-2, -1) / self.d_k), V)
-        Z = torch.matmul(A, B)
-        
-        return Z
+        A = torch.matmul(self.softmax_col(K.transpose(-1, -2).contiguous() / self.d_k), V)
+        B = torch.matmul(self.softmax_row(Q / self.d_q), A)
+        b, h, w, d = B.shape
+        B = self.W_O(B.view(b, w, h * d))
+        B = B.unsqueeze(dim=1).permute(0, 1, 3, 2)
 
+        return B
 
-class MHLA(nn.Module):
-    def __init__(self, 
-                 num_heads, 
-                 dim_input_q,
-                 dim_input_kv,
-                 dim_q = 64,
-                 dim_k = 64,
-                 device="cpu",
-                 mask=False
-                ):
-        """
-        Args:
-        dim_input - if shape is (B, C, H, W), then dim_input is W
-        """
-        #TODO: Make parallel heads like channel dim
-        super().__init__()
-        heads = [LightAttention(dim_input_q, dim_input_kv, dim_q, dim_k, device, mask) for _ in range(num_heads)]
-        self.heads = nn.ModuleList(heads)                
-        self.W_o = nn.Linear(dim_k*num_heads, dim_input_kv)
-        
-    def forward(self, x_q, x_k, x_v):
-        x = torch.cat([latt(x_q, x_k, x_v) for latt in self.heads], dim=-1)
-        y = self.W_o(x)
-        return y
-    
     
 class GLU(nn.Module):
     def __init__(self, dim):
@@ -190,20 +181,24 @@ class ConvModule(nn.Module):
     
     
 class LAC(nn.Module):
-    def __init__(self, dim_B=1, dim_C=1, dim_H=64, dim_W=256, device="cpu"):
+    def __init__(self, dim_B=1, dim_C=1, dim_H=64, dim_W=256, device="cpu", dropout=0.1):
         super().__init__()
         self.lffn1 = LFFN(inputs_dim=(dim_B, dim_C, dim_H, dim_W), dim_hid=1024)
-        self.mhlsa = MHLA(num_heads=8, dim_input_q=dim_W, dim_input_kv=dim_W, device=device)
+        self.do1 = nn.Dropout(dropout)
+        self.mhlsa = MHLA2(num_heads=4, dim_input_q=dim_H, dim_input_kv=dim_H, dim_q=16, dim_k=16, device=device)
+        self.do2 = nn.Dropout(dropout)
         self.conv_module = ConvModule(dim_C, dim_H, dim_W)
+        self.do3 = nn.Dropout(dropout)
         self.lffn2 = LFFN(inputs_dim=(dim_B, dim_C, dim_H, dim_W), dim_hid=1024)
+        self.do4 = nn.Dropout(dropout)
         self.ln = nn.LayerNorm(dim_W)
         
     def forward(self, inputs):
         x = inputs
-        x = x + 1/2 * self.lffn1(x)
-        x = x + self.mhlsa(x, x, x)
-        x = x + self.conv_module(x)
-        x = x + 1/2 * self.lffn2(x)
+        x = x + 1/2 * self.do1(self.lffn1(x))
+        x = x + self.do2(self.mhlsa(x, x, x))
+        x = x + self.do3(self.conv_module(x))
+        x = x + 1/2 * self.do4(self.lffn2(x))
         x = self.ln(x)
         return inputs + x
     
@@ -219,23 +214,27 @@ class Encoder(nn.Module):
     
 
 class DecoderBlock(nn.Module):
-    def __init__(self, dim_shape_tgt, dim_shape_mem, device="cpu"):
+    def __init__(self, dim_shape_tgt, dim_shape_mem, device="cpu", dropout=0.1):
         super().__init__()
         dim_B, dim_C, dim_H, dim_tgt = dim_shape_tgt
         dim_mem = dim_shape_mem[-1]
-        self.mhla_with_mask = MHLA(num_heads=2, dim_input_q=dim_tgt, dim_input_kv=dim_tgt, mask=True, device=device)
+        dim_mem_2 = dim_shape_mem[-2]
+        self.mhla_with_mask = MHLA2(num_heads=4, dim_input_q=dim_H, dim_input_kv=dim_H, dim_q=16, dim_k=16, mask=True, device=device)
+        self.do1 = nn.Dropout(dropout)
         self.ln1 = nn.LayerNorm(dim_tgt)
-        self.mhla_with_memory = MHLA(num_heads=2, dim_input_q=dim_tgt, dim_input_kv=dim_mem, device=device)
+        self.mhla_with_memory = MHLA2(num_heads=4, dim_input_q=dim_H, dim_input_kv=dim_mem_2, dim_q=16, dim_k=16, device=device)
+        self.do2 = nn.Dropout(dropout)
         self.ln2 = nn.LayerNorm(dim_tgt)
         self.lffn = LFFN(inputs_dim=(dim_B, dim_C, dim_H, dim_mem), dim_hid=1024)
+        self.do3 = nn.Dropout(dropout)
         self.ln3 = nn.LayerNorm(dim_tgt)
         
     def forward(self, mem, y):
-        y = y + self.mhla_with_mask(y, y, y)
+        y = y + self.do1(self.mhla_with_mask(y, y, y))
         y = self.ln1(y)
-        y = y + self.mhla_with_memory(y, mem, mem)
+        y = y + self.do2(self.mhla_with_memory(y, mem, mem))
         y = self.ln2(y)
-        y = y + self.lffn(y)
+        y = y + self.do3(self.lffn(y))
         y = self.ln3(y)
         return y
     
@@ -340,15 +339,28 @@ class Conformer(nn.Module):
 class CommandClassifier(Conformer):
     def __init__(self, *args, **kwargs):
         super(CommandClassifier, self).__init__(*args, **kwargs)
-        self.lin1 = nn.Sequential(nn.Linear(38 * 256, 2048), nn.ReLU()).to(kwargs["device"])
-        self.lin2 = nn.Sequential(nn.Linear(2048, 1024), nn.ReLU()).to(kwargs["device"])
-        self.lin3 = nn.Sequential(nn.Linear(1024, 5), nn.Softmax(dim=-1)).to(kwargs["device"])
+        self.lin_out = nn.Sequential(nn.Linear(38 * 256, 5),
+                                  nn.Dropout(0.3),
+                                  nn.Softmax(dim=-1)).to(kwargs["device"])
 
     def forward(self, inputs, tgt):
         x, y = super(CommandClassifier, self).forward(inputs, tgt)
         b, _, t, d = y.shape
         out = y.view(b, t * d)
-        out = self.lin1(out)
-        out = self.lin2(out)
-        out = self.lin3(out)
+        out = self.lin_out(out)
         return x, out
+
+
+class CommandClassifierByEncoder(Conformer):
+    def __init__(self, *args, **kwargs):
+        super(CommandClassifierByEncoder, self).__init__(*args, **kwargs)
+        self.lin_out = nn.Sequential(nn.Linear(38 * 152, 5),
+                                  nn.Dropout(0.3),
+                                  nn.Softmax(dim=-1)).to(kwargs["device"])
+
+    def forward(self, inputs, tgt):
+        x, y = super(CommandClassifierByEncoder, self).forward(inputs, tgt)
+        b, _, t, d = x.shape
+        out = x.view(b, t * d)
+        out = self.lin_out(out)
+        return out, out

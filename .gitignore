@@ -342,3 +342,4 @@ healthchecksdb
 venv
 .ipynb_checkpoints/
 *.bat
+wandb/
