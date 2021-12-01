@@ -9,7 +9,7 @@ BATCH_SIZE = 2
 CONFIG = {
     "Notes": "Adding dropout to encoder and decoder blocks",
     "batch_size": BATCH_SIZE,
-    "epochs": 10, # 82, 55
+    "epochs": 100, # 82, 55
     "learning_rate": 0.0001,
     "pretrain": False,
     "n_encoders": 5,
