@@ -11,7 +11,6 @@ class Swish(nn.Module):
         return x * x.sigmoid()
 
 
-# YEP
 class EncoderInputsProc(nn.Module):
     def __init__(self, d_inputs, d_model, device="cpu"):
         super().__init__()
@@ -23,8 +22,7 @@ class EncoderInputsProc(nn.Module):
         ).to(device)
 
     def forward(self, X):
-        out = X.transpose(-1, -2).contiguous()
-        out = self.convs(out)
+        out = self.convs(X)
         out = out.transpose(-1, -2).contiguous()
         return out
 
@@ -43,7 +41,6 @@ class DecoderInputsProc(nn.Module):
         return out
 
 
-# YEP
 class AbsolutePositionEncoding(nn.Module):
     def __init__(self):
         super().__init__()
@@ -73,7 +70,6 @@ class AbsolutePositionEncoding(nn.Module):
         return PE
 
 
-# YEP
 class LFFN(nn.Module):
     def __init__(self, dim, dim_bn, dim_hid):
         """
@@ -103,7 +99,6 @@ class LFFN(nn.Module):
         return y
 
 
-# YEP
 class MHLA2(nn.Module):
     def __init__(self,
                  num_heads,
@@ -158,7 +153,6 @@ class MHLA2(nn.Module):
         return B
 
 
-# YEP
 class GLU(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -169,7 +163,6 @@ class GLU(nn.Module):
         return out * gate.sigmoid()
 
 
-# YEP
 class DepthWiseConv1d(nn.Module):
     def __init__(self, chan_in, chan_out, kernel_size=3, padding=1):
         super().__init__()
@@ -182,7 +175,6 @@ class DepthWiseConv1d(nn.Module):
         return x
 
 
-# YEP
 class PointWiseConv(nn.Module):
     def __init__(self, chan_in):
         super().__init__()
@@ -193,7 +185,6 @@ class PointWiseConv(nn.Module):
         return x
 
 
-# YEP
 class ConvModule(nn.Module):
     def __init__(self, dim_W, dim_bn, dropout=0.3):
         super().__init__()
@@ -223,7 +214,6 @@ class ConvModule(nn.Module):
         return x
 
 
-# YEP
 class LAC(nn.Module):
     def __init__(self, d_model, n_heads=2, device="cpu", dropout=0.1):
         super().__init__()
@@ -247,7 +237,6 @@ class LAC(nn.Module):
         return inputs + x
 
 
-# YEP
 class Encoder(nn.Module):
     def __init__(self, d_model, n_encoders=2, device="cpu"):
         super().__init__()
@@ -258,7 +247,6 @@ class Encoder(nn.Module):
         return x
 
 
-# YEP
 class DecoderBlock(nn.Module):
     def __init__(self, dim_tgt, dim_mem, device="cpu", dropout=0.1):
         super().__init__()
@@ -282,7 +270,6 @@ class DecoderBlock(nn.Module):
         return y
 
 
-# YEP
 class Decoder(nn.Module):
     def __init__(self, d_model, dropout=0.3, device="cpu", n_decoders=4):
         super().__init__()
@@ -351,7 +338,7 @@ class EfConfClassifier(EfficientConformer):
         self.lin_out = nn.Sequential(
             nn.Linear(kwargs.get("d_model", 64), 5),
             nn.Softmax(dim=-1)
-        )
+        ).to(self.device)
 
     def forward(self, inputs, tgt):
         emb, out = super().forward(inputs, tgt)

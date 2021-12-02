@@ -9,9 +9,9 @@ BATCH_SIZE = 2
 CONFIG = {
     "Notes": "4 encoders 2 decoders",
     "batch_size": BATCH_SIZE,
-    "epochs": 1, # 82, 55
-    "learning_rate": 0.0001,
+    "epochs": 100, # 82, 55
+    "learning_rate": 3e-7,
     "pretrain": False,
     "n_encoders": 4,
-    "n_decoders": 2
+    "n_decoders": 4
 }

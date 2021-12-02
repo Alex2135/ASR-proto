@@ -67,9 +67,12 @@ class CommonVoiceUkr(Dataset):
         return image
 
     def pad_spectro(self, X):
+        """
         T = X.shape[-1]
         half_pad = (self.pad_dim2 - T) // 2
         left, right = (half_pad, half_pad) if T % 2 == 0 else (half_pad, half_pad + 1)
+        """
+        left, right = 0, 0
 
         D = X.shape[-2]
         top = self.pad_dim1 - D
