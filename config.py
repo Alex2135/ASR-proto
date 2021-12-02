@@ -7,11 +7,11 @@ TRAIN_SPEC_PATH = os.path.join(DATA_DIR, "spectrograms_classifire")
 BATCH_SIZE = 2
 
 CONFIG = {
-    "Notes": "Adding dropout to encoder and decoder blocks",
+    "Notes": "4 encoders 2 decoders",
     "batch_size": BATCH_SIZE,
-    "epochs": 100, # 82, 55
+    "epochs": 1, # 82, 55
     "learning_rate": 0.0001,
     "pretrain": False,
-    "n_encoders": 5,
-    "n_decoders": 1
+    "n_encoders": 4,
+    "n_decoders": 2
 }

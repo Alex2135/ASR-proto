@@ -91,7 +91,7 @@ def get_scheduler(epochs, train_len, optimizer, scheduler_name="cosine_with_warm
         return get_cosine_schedule_with_warmup(optimizer,
                                                 num_warmup_steps=epochs//5,
                                                 num_training_steps=epochs - epochs//5,
-                                                num_cycles=1.5)
+                                                num_cycles=1.25)
     elif scheduler_name == "constant":
         return torch.optim.lr_scheduler.ConstantLR(optimizer)
     elif scheduler_name == "exponential":
