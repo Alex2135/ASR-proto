@@ -15,9 +15,7 @@ class EncoderInputsProc(nn.Module):
     def __init__(self, d_inputs, d_model, device="cpu"):
         super().__init__()
         self.convs = nn.Sequential(
-            nn.Conv1d(d_inputs, 256, kernel_size=7, stride=3),
-            nn.ReLU(),
-            nn.Conv1d(256, d_model, kernel_size=7, stride=3),
+            nn.Conv1d(d_inputs, d_model, kernel_size=7, stride=3),
             nn.ReLU()
         ).to(device)
 
@@ -71,7 +69,7 @@ class AbsolutePositionEncoding(nn.Module):
 
 
 class LFFN(nn.Module):
-    def __init__(self, dim, dim_bn, dim_hid):
+    def __init__(self, dim, dim_bn, dim_hid, dropout=0.3):
         """
         Args:
         dim_bn - int,
@@ -85,7 +83,7 @@ class LFFN(nn.Module):
         self.E1 = nn.Linear(in_features=dim, out_features=dim_bn, bias=False)
         self.D1 = nn.Linear(in_features=dim_bn, out_features=dim_hid, bias=False)
         self.swish = Swish()
-        self.dropout = nn.Dropout(0.5)
+        self.dropout = nn.Dropout(dropout)
         self.E2 = nn.Linear(in_features=dim_hid, out_features=dim_bn, bias=False)
         self.D2 = nn.Linear(in_features=dim_bn, out_features=dim, bias=False)
 
@@ -223,7 +221,7 @@ class LAC(nn.Module):
         self.do2 = nn.Dropout(dropout)
         self.conv_module = ConvModule(d_model, dim_bn=8)
         self.do3 = nn.Dropout(dropout)
-        self.lffn2 = LFFN(dim=d_model, dim_bn=256, dim_hid=1024)
+        self.lffn2 = LFFN(dim=d_model, dim_bn=512, dim_hid=1024)
         self.do4 = nn.Dropout(dropout)
         self.ln = nn.LayerNorm(d_model)
 
@@ -238,9 +236,9 @@ class LAC(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, d_model, n_encoders=2, device="cpu"):
+    def __init__(self, d_model, n_encoders=2, n_heads=4, device="cpu"):
         super().__init__()
-        self.lacs = nn.Sequential(*[LAC(d_model=d_model, device=device) for i in range(n_encoders)])
+        self.lacs = nn.Sequential(*[LAC(d_model=d_model, n_heads=n_heads, device=device) for i in range(n_encoders)])
 
     def forward(self, inputs):
         x = self.lacs(inputs)
@@ -248,15 +246,15 @@ class Encoder(nn.Module):
 
 
 class DecoderBlock(nn.Module):
-    def __init__(self, dim_tgt, dim_mem, device="cpu", dropout=0.1):
+    def __init__(self, dim_tgt, dim_mem, n_heads=4, device="cpu", dropout=0.1):
         super().__init__()
-        self.mhla_with_mask = MHLA2(num_heads=2, dim_input_q=dim_tgt, dim_input_kv=dim_tgt, mask=True, device=device)
+        self.mhla_with_mask = MHLA2(num_heads=n_heads, dim_input_q=dim_tgt, dim_input_kv=dim_tgt, mask=True, device=device)
         self.do1 = nn.Dropout(dropout)
         self.ln1 = nn.LayerNorm(dim_tgt)
-        self.mhla_with_memory = MHLA2(num_heads=2, dim_input_q=dim_tgt, dim_input_kv=dim_mem, device=device)
+        self.mhla_with_memory = MHLA2(num_heads=n_heads, dim_input_q=dim_tgt, dim_input_kv=dim_mem, device=device)
         self.do2 = nn.Dropout(dropout)
         self.ln2 = nn.LayerNorm(dim_tgt)
-        self.lffn = LFFN(dim=dim_mem, dim_bn=256, dim_hid=1024)
+        self.lffn = LFFN(dim=dim_mem, dim_bn=512, dim_hid=1024)
         self.do3 = nn.Dropout(dropout)
         self.ln3 = nn.LayerNorm(dim_tgt)
 
@@ -271,11 +269,11 @@ class DecoderBlock(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, d_model, dropout=0.3, device="cpu", n_decoders=4):
+    def __init__(self, d_model, n_decoders=4, n_heads=4, device="cpu"):
         super().__init__()
         self.device = device
         self.dec_blocks = nn.ModuleList([
-            DecoderBlock(dim_tgt=d_model, dim_mem=d_model, device=device)
+            DecoderBlock(dim_tgt=d_model, n_heads=n_heads, dim_mem=d_model, device=device)
             for _ in range(n_decoders)])
 
     def forward(self, mem, tgt):
@@ -289,14 +287,22 @@ class Decoder(nn.Module):
 
 
 class EfficientConformer(nn.Module):
-    def __init__(self, n_encoders=2, n_decoders=2, d_model=64, device="cpu", dropout=0.3):
+    def __init__(self,
+                 n_encoders=2,
+                 n_decoders=2,
+                 d_model=64,
+                 d_inputs=768,
+                 d_outputs=38,
+                 n_heads_enc=4,
+                 n_heads_dec=4,
+                 device="cpu"):
         super().__init__()
-        self.enc_proc = EncoderInputsProc(d_inputs=768, d_model=d_model, device=device)
-        self.dec_proc = DecoderInputsProc(d_inputs=38, d_model=d_model, device=device)
+        self.enc_proc = EncoderInputsProc(d_inputs=d_inputs, d_model=d_model, device=device)
+        self.dec_proc = DecoderInputsProc(d_inputs=d_outputs, d_model=d_model, device=device)
         self.pos_enc_inp = AbsolutePositionEncoding()
         self.pos_enc_out = AbsolutePositionEncoding()
-        self.encoder = Encoder(n_encoders=n_encoders, d_model=64, device=device)
-        self.decoder = Decoder(n_decoders=n_decoders, d_model=64, device=device)
+        self.encoder = Encoder(n_encoders=n_encoders, d_model=d_model, n_heads=n_heads_enc, device=device)
+        self.decoder = Decoder(n_decoders=n_decoders, d_model=d_model, n_heads=n_heads_dec, device=device)
         self.device = device
         self.to(device)
 
@@ -322,10 +328,12 @@ class EfConfRecognizer(EfficientConformer):
         self.device = kwargs.get("device", "cpu")
         self.lin_out = nn.Sequential(
             nn.Linear(kwargs["d_model"], 38),
-            nn.Softmax(dim=-1)
-        )
+            nn.LogSoftmax(dim=-1) #dim=-1
+        ).to(self.device)
 
     def forward(self, inputs, tgt):
+        inputs = inputs.to(self.device)
+        tgt = tgt.to(self.device)
         emb, out = super().forward(inputs, tgt)
         out = self.lin_out(out)
         return emb, out

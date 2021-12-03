@@ -25,7 +25,7 @@ class LangCharHandling(LangHandling):
     def remove_stop_signs(self, sentence):
         for sign in self.stop_signs:
             sentence = sentence.replace(sign, "")
-        return sentence
+        return sentence.strip()
 
     def sentence_to_indeces(self, sentence):
         sent = self.remove_stop_signs(sentence)
@@ -105,7 +105,7 @@ def CER(indeces1, indeces2):
     return char_sum / n
 
 
-extra_tokens = ["<eos>", "<blank>", "<sos>", "<unk>", " "]
+extra_tokens = ["<sos>", "<eos>", "<unk>", "<blank>", " "]
 tokens = extra_tokens + ['а', 'б', 'в', 'г', 'д',
         'е', 'ж', 'з', 'и', 'й', 'к', 'л', 'м',
         'н', 'о', 'п', 'р', 'с', 'т', 'у', 'ф',

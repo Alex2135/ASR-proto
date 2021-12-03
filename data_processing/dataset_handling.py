@@ -11,6 +11,7 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
+from data_processing import ukr_lang_chars_handle
 
 
 class CommonVoiceUkr(Dataset):
@@ -106,7 +107,7 @@ class CommonVoiceUkr(Dataset):
 
         # Get you label here using available pandas functions
         Y = {
-            "text": self.speech_text[index],
+            "text": ukr_lang_chars_handle.remove_stop_signs(self.speech_text[index]),
             "label": self.class_labels[index]
         }
 

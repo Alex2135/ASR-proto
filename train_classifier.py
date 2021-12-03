@@ -53,7 +53,7 @@ def train(model, train_dataloader, optimizer, device, scheduler=None, epoch=1, w
 
         running_loss.append(loss.cpu().detach().numpy())
         losses_per_phase.append(loss.cpu().detach().numpy())
-        if (idx + 1) % 25 == 0:  # print every 200 mini-batches
+        if (idx + 1) % (train_len // 10) == 0:  # print every 200 mini-batches
             loss_mean = np.mean(np.array(losses_per_phase))
             print(f"Epoch: {epoch}, Last loss: {loss.item():.4f}, Loss phase mean: {loss_mean:.4f}")
             if wb:
@@ -121,18 +121,21 @@ def collate_fn(data):
     return Xs_out, d_out
 
 def main():
-    wandb_stat = wandb.init(project="ASR", entity="Alex2135", config=CONFIG)
+    wandb_stat = None #wandb.init(project="ASR", entity="Alex2135", config=CONFIG)
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # Making dataset and loader
     ds = CommonVoiceUkr(TRAIN_PATH, TRAIN_SPEC_PATH, batch_size=BATCH_SIZE)
     train_dataloader = DataLoader(ds, shuffle=True, collate_fn=collate_fn, batch_size=BATCH_SIZE)
     train_val_dataloader = DataLoader(ds, shuffle=True, collate_fn=collate_fn, batch_size=64)
+
     epochs = CONFIG["epochs"]
     train_len = len(train_dataloader) * epochs
 
     tgt_n = 152
-    model = Model(n_encoders=CONFIG["n_encoders"], n_decoders=CONFIG["n_decoders"], device=device)
+    model = Model(n_encoders=CONFIG["n_encoders"],
+                  n_decoders=CONFIG["n_decoders"],
+                  device=device)
     if CONFIG["pretrain"] == True:
         PATH = os.path.join(DATA_DIR, "model_1.pt")
         model = Model(n_encoders=CONFIG["n_encoders"], n_decoders=CONFIG["n_decoders"], device=device)
@@ -140,7 +143,6 @@ def main():
 
     # Create optimizator
     optimizer = AdamW(model.parameters(), lr=CONFIG["learning_rate"])
-    save_model = False
     scheduler = get_scheduler(CONFIG["epochs"], train_len, optimizer, scheduler_name="cosine_with_warmup", wb=wandb_stat)
 
     for epoch in range(1, epochs + 1):
@@ -152,7 +154,7 @@ def main():
         if wandb_stat:
             wandb_stat.log({"scheduler lr": scheduler.get_last_lr()[0]})
 
-    if save_model:
+    if CONFIG["save_model"] == True:
         PATH = os.path.join(DATA_DIR, "model_1.pt")
         print(f"Save model to path: '{PATH}'")
         torch.save(model.state_dict(), PATH)
