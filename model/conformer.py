@@ -125,7 +125,8 @@ class GLU(nn.Module):
         out, gate = x.chunk(2, dim=self.dim)
         return out * gate.sigmoid()
     
-    
+
+# TODO: Review by conformer repo
 class DepthWiseConv1d(nn.Module):
     def __init__(self, chan_in, chan_out, kernel_size, padding):
         super().__init__()

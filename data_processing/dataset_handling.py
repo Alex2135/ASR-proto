@@ -34,7 +34,7 @@ class CommonVoiceUkr(Dataset):
         df = df[:(n - n%batch_size)]
         self.speech_text = df["sentence"]
         self.img_names = df["spectro_path"]
-        self.class_labels = df["class"]
+        self.class_labels = df["class"] if 'class' in df.columns else None
         self.pad_dim1 = pad_dim1
         self.pad_dim2 = pad_dim2
         self.txt_path = txt_path
@@ -108,7 +108,7 @@ class CommonVoiceUkr(Dataset):
         # Get you label here using available pandas functions
         Y = {
             "text": ukr_lang_chars_handle.remove_stop_signs(self.speech_text[index]),
-            "label": self.class_labels[index]
+            "label": self.class_labels[index] if self.class_labels != None else None
         }
 
         if self.transform is not None:
