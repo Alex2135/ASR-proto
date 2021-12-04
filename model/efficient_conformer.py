@@ -125,8 +125,8 @@ class MHLA2(nn.Module):
         self.W_V = nn.init.xavier_uniform_(self.W_V)
         self.d_q = torch.pow(torch.Tensor([dim_q]).to(device), 1 / 4)
         self.d_k = torch.pow(torch.Tensor([dim_k]).to(device), 1 / 4)
-        self.softmax_col = nn.Softmax(dim=-1)
-        self.softmax_row = nn.Softmax(dim=-2)
+        self.softmax_col = nn.Softmax(dim=-2)
+        self.softmax_row = nn.Softmax(dim=-1)
 
     def mask(self, dim: (int, int)) -> Tensor:
         a, b = dim
@@ -344,7 +344,7 @@ class EfConfClassifier(EfficientConformer):
         super().__init__(*args, **kwargs)
         self.device = kwargs.get("device", "cpu")
         self.lin_out = nn.Sequential(
-            nn.Linear(kwargs.get("d_model", 64), 5),
+            nn.Linear(kwargs["d_model"], kwargs["d_outputs"]),
             nn.Softmax(dim=-1)
         ).to(self.device)
 

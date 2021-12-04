@@ -108,7 +108,7 @@ class CommonVoiceUkr(Dataset):
         # Get you label here using available pandas functions
         Y = {
             "text": ukr_lang_chars_handle.remove_stop_signs(self.speech_text[index]),
-            "label": self.class_labels[index] if self.class_labels != None else None
+            "label": self.class_labels[index] if type(self.class_labels) is pd.Series else None
         }
 
         if self.transform is not None:

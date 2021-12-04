@@ -30,17 +30,15 @@ def train(model, train_dataloader, optimizer, device, scheduler=None, epoch=1, w
     for idx, (X, tgt) in tqdm(enumerate(train_dataloader)):
         tgt_text = tgt["text"]
         tgt_class = torch.Tensor(tgt["label"]).long().to(device)
-        tgt_class = F.one_hot(tgt_class, num_classes=5)
+        tgt_class = F.one_hot(tgt_class, num_classes=5).unsqueeze(dim=1).float()
 
-        one_hots = ukr_lang_chars_handle.sentences_to_one_hots(tgt_text, 152).to(device)
-        one_hots = one_hots.squeeze(dim=1).permute(0, 2, 1).float()
+
         X = X.to(device) #
         X = X.squeeze(dim=1).permute(0, 2, 1)
-        #print(f"{X.shape=}")
-        #print(f"{one_hots.shape=}")
 
-        emb, output = model(X, one_hots)  # (batch, time, n_class), (batch, time, n_class)
-        loss = ce_criterion(output, tgt_class.float()) # output.shape == (N, C) where N - batch, C - number of classes
+        emb, output = model(X, tgt_class)  # (batch, time, n_class), (batch, time, n_class)
+        tgt_class = tgt_class.squeeze(dim=1).float()
+        loss = ce_criterion(output, tgt_class.squeeze(dim=1).float()) # output.shape == (N, C) where N - batch, C - number of classes
         if wb:
             wb.log({
                 "loss": loss.item(),
@@ -71,16 +69,13 @@ def val(model, train_dataloader, device, epoch, wb=None):
     print("Evaluation on train dataset")
     with torch.no_grad():
         for idx, (X, tgt) in tqdm(enumerate(train_dataloader)):
-            tgt_text = " "#tgt["text"]
             tgt_class = torch.Tensor(tgt["label"]).long().to(device)
-            tgt_class = F.one_hot(tgt_class, num_classes=5)
-            one_hots = ukr_lang_chars_handle.sentences_to_one_hots(tgt_text, 152).to(device)
-            one_hots = one_hots.squeeze(dim=1).permute(0, 2, 1).float()
+            tgt_class = F.one_hot(tgt_class, num_classes=5).unsqueeze(dim=1).float()
             X = X.to(device)  #
             X = X.squeeze(dim=1).permute(0, 2, 1)
-            emb, output = model(X, one_hots)
-            A = torch.argmax(output, dim=-1)
-            B = torch.argmax(tgt_class, dim=-1)
+            emb, output = model(X, tgt_class)
+            A = torch.argmax(output, dim=-1).reshape(-1)
+            B = torch.argmax(tgt_class, dim=-1).reshape(-1)
             is_right = (A == B)
             positive += torch.sum(is_right)
 
@@ -135,6 +130,8 @@ def main():
     tgt_n = 152
     model = Model(n_encoders=CONFIG["n_encoders"],
                   n_decoders=CONFIG["n_decoders"],
+                  d_model=64,
+                  d_outputs=5,
                   device=device)
     if CONFIG["pretrain"] == True:
         PATH = os.path.join(DATA_DIR, "model_1.pt")
