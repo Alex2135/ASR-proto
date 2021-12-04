@@ -12,7 +12,7 @@ CONFIG = {
     "Notes": "3 encoders 1 decoders",
     "batch_size": BATCH_SIZE,
     "epochs": 10, # 82, 55
-    "learning_rate": 1e-4, #last good: 1e-6, # max: 1e-6, min: 1e-7, begin: 5e-7
+    "learning_rate": 1e-3,
     "pretrain": False,
     "n_encoders": 3,
     "n_decoders": 1,

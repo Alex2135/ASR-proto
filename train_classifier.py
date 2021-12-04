@@ -152,7 +152,7 @@ def main():
             wandb_stat.log({"scheduler lr": scheduler.get_last_lr()[0]})
 
     if CONFIG["save_model"] == True:
-        PATH = os.path.join(DATA_DIR, "model_1.pt")
+        PATH = os.path.join(DATA_DIR, "model_2.pt")
         print(f"Save model to path: '{PATH}'")
         torch.save(model.state_dict(), PATH)
 
