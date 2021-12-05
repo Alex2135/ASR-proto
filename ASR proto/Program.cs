@@ -140,13 +140,13 @@ namespace ASR_proto
                  */
 
                 const string DATA_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk";
-                const string CLIPS_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk\clips";//@"D:\ML\Speech recognition\NLP_diploma\uk\clips_classifire";
-                const string SPECTRO_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk\train_spectrograms";//@"D:\ML\Speech recognition\NLP_diploma\uk\spectrograms_classifire";
+                const string CLIPS_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk\clips_classifire\aug+orig";//@"D:\ML\Speech recognition\NLP_diploma\uk\clips";
+                const string SPECTRO_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk\spectrograms_classifire";//@"D:\ML\Speech recognition\NLP_diploma\uk\train_spectrograms";//
 
                 DataPreparation.clipsPath = CLIPS_DIR;
                 DataPreparation.spectrogramsPath = SPECTRO_DIR;
 
-                string[] audios = Directory.GetFiles(CLIPS_DIR, "*.mp3");
+                string[] audios = Directory.GetFiles(CLIPS_DIR, "*.wav");
 
                 foreach (string path in audios)
                 {

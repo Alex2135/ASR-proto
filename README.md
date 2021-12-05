@@ -6,6 +6,12 @@ linear attention"</a> paper (by Shengqiang Li, Menglong Xu, Xiao-Lei Zhang? CIAI
 
 Model files contains in "model" folder in the [efficient_conformer.py](model/efficient_conformer.py) script.
 
+You are can install requirements for this project by:
+
+```
+pip install -r requirements.txt
+```
+
 This model was build for classification and ASR tasks. So for launch to train classifier you could run
 [train_classifier.py](train_classifier.py) like
 

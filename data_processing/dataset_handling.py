@@ -101,14 +101,14 @@ class CommonVoiceUkr(Dataset):
             self.tf.close()
 
         if self.get_image_selector:  # note: we prefer to extract then process!
-            X = self.get_image_from_tar(self.img_names[index])
+            X = self.get_image_from_tar(self.img_names.iloc[index])
         else:
-            X = self.get_image_from_folder(self.img_names[index])
+            X = self.get_image_from_folder(self.img_names.iloc[index])
 
         # Get you label here using available pandas functions
         Y = {
-            "text": ukr_lang_chars_handle.remove_stop_signs(self.speech_text[index]),
-            "label": self.class_labels[index] if type(self.class_labels) is pd.Series else None
+            "text": ukr_lang_chars_handle.remove_stop_signs(self.speech_text.iloc[index]),
+            "label": self.class_labels.iloc[index] if type(self.class_labels) is pd.Series else None
         }
 
         if self.transform is not None:

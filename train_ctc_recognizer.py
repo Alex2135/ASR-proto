@@ -82,7 +82,6 @@ def train(model, train_dataloader, optimizer, device, scheduler=None, epoch=1, w
         optimizer.zero_grad()
 
 
-
 def val(model, train_dataloader, device, epoch, wb=None):
     model.eval()
     positive = 0
@@ -92,7 +91,7 @@ def val(model, train_dataloader, device, epoch, wb=None):
     print("Evaluation on train dataset")
     with torch.no_grad():
         for idx, (X, tgt) in tqdm(enumerate(train_dataloader)):
-            tgt_text = " "#tgt["text"]
+            tgt_text = " "  #  tgt["text"]
             tgt_class = torch.Tensor(tgt["label"]).long().to(device)
             tgt_class = F.one_hot(tgt_class, num_classes=5)
             one_hots = ukr_lang_chars_handle.sentences_to_one_hots(tgt_text, 152).to(device)
@@ -119,9 +118,9 @@ def get_scheduler(epochs, train_len, optimizer, scheduler_name="cosine_with_warm
         wb.config["scheduler"] = scheduler_name
     if scheduler_name == "cosine_with_warmup":
         return get_cosine_schedule_with_warmup(optimizer,
-                                                num_warmup_steps=epochs//5,
-                                                num_training_steps=epochs - epochs//5,
-                                                num_cycles=0.5)#1.25)
+                                               num_warmup_steps=epochs//5,
+                                               num_training_steps=epochs - epochs//5,
+                                               num_cycles=0.5)
     elif scheduler_name == "constant":
         return torch.optim.lr_scheduler.ConstantLR(optimizer)
     elif scheduler_name == "exponential":
@@ -133,17 +132,17 @@ def get_scheduler(epochs, train_len, optimizer, scheduler_name="cosine_with_warm
 
 
 def collate_fn(data):
-    Xs, LBLs = zip(*data)
-    Xs_out = pad_sequence([X.permute(0, 2, 1).squeeze(dim=0) for X in Xs], batch_first=True)
-    lbl1 = LBLs[0]
+    xs, lbls = zip(*data)
+    xs_out = pad_sequence([x.permute(0, 2, 1).squeeze(dim=0) for x in xs], batch_first=True)
+    lbl1 = lbls[0]
     d_out = {}
     for key in lbl1.keys():
-        d_out[key] = [d[key] for d in LBLs]
-    return Xs_out, d_out
+        d_out[key] = [d[key] for d in lbls]
+    return xs_out, d_out
 
 
 def main():
-    wandb_stat = None#wandb.init(project="ASR", entity="Alex2135", config=CONFIG)
+    wandb_stat = None  # wandb.init(project="ASR", entity="Alex2135", config=CONFIG)
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # Making dataset and loader
@@ -160,7 +159,7 @@ def main():
                   n_encoders=CONFIG["n_encoders"],
                   n_decoders=CONFIG["n_decoders"],
                   device=device)
-    if CONFIG["pretrain"] == True:
+    if CONFIG["pretrain"] :
         PATH = os.path.join(DATA_DIR, "model_1.pt")
         model = Model(n_encoders=CONFIG["n_encoders"], n_decoders=CONFIG["n_decoders"], device=device)
         model.load_state_dict(torch.load(PATH))
@@ -183,6 +182,7 @@ def main():
         PATH = os.path.join(DATA_DIR, "model_1.pt")
         print(f"Save model to path: '{PATH}'")
         torch.save(model.state_dict(), PATH)
+
 
 if __name__ == "__main__":
     main()
