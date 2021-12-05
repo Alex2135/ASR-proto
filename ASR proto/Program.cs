@@ -141,7 +141,7 @@ namespace ASR_proto
 
                 const string DATA_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk";
                 const string CLIPS_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk\clips_classifire\aug+orig";//@"D:\ML\Speech recognition\NLP_diploma\uk\clips";
-                const string SPECTRO_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk\spectrograms_classifire";//@"D:\ML\Speech recognition\NLP_diploma\uk\train_spectrograms";//
+                const string SPECTRO_DIR = @"D:\ML\Speech recognition\NLP_diploma\uk\mel_spectrograms_classifire";//@"D:\ML\Speech recognition\NLP_diploma\uk\train_spectrograms";//
 
                 DataPreparation.clipsPath = CLIPS_DIR;
                 DataPreparation.spectrogramsPath = SPECTRO_DIR;

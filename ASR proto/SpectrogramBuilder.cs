@@ -12,7 +12,7 @@ namespace ASR_proto
     {
         public string ImagePath { get; set; } = "1.jpg";
         public int FFTSize { get; set; } = 4096; // 4096
-        public int FFTStepSize { get; set; } = 512;
+        public int FFTStepSize { get; set; } = 400;
         public double MaxFrequency { get; set; } = 3_000;
         public Colormap ImageColormap { get; set; } = Colormap.Grayscale;
         public int SpectrogramWidth { get; set; } = (int)Math.Pow(2, 9);
@@ -36,7 +36,9 @@ namespace ASR_proto
             sg.Add(audio);
             sg.SetColormap(ImageColormap);
             //sg.SetFixedWidth(1024);
-            sg.SaveImage(ImagePath, dB: true, dBScale: 10);
+            var bmp = sg.GetBitmapMel(melBinCount: 103, dB: true, dBScale: 10);
+            bmp.Save(ImagePath, System.Drawing.Imaging.ImageFormat.Jpeg);
+            //sg.SaveImage(ImagePath, dB: true, dBScale: 10);
         }
 
         public (double[] audio, int sampleRate) ReadWAV(string filePath)

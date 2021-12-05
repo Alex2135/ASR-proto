@@ -114,15 +114,15 @@ def collate_fn(data):
 
 
 def main():
-    wandb_stat = None  # wandb.init(project="ASR", entity="Alex2135", config=CONFIG)
+    wandb_stat = wandb.init(project="ASR", entity="Alex2135", config=CONFIG)
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # Making dataset and loader
-    ds_train = CommonVoiceUkr(TRAIN_PATH, TRAIN_SPEC_PATH, batch_size=BATCH_SIZE)
-    ds_test = CommonVoiceUkr(TEST_PATH, TRAIN_SPEC_PATH, batch_size=BATCH_SIZE)
+    ds_train = CommonVoiceUkr(TRAIN_PATH, TRAIN_SPEC_PATH, pad_dim1=103, batch_size=BATCH_SIZE)
+    ds_test = CommonVoiceUkr(TEST_PATH, TRAIN_SPEC_PATH, pad_dim1=103, batch_size=BATCH_SIZE)
     train_dataloader = DataLoader(ds_train, shuffle=True, collate_fn=collate_fn, batch_size=BATCH_SIZE)
     train_val_dataloader = DataLoader(ds_train, shuffle=True, collate_fn=collate_fn, batch_size=64)
-    test_val_dataloader = DataLoader(ds_train, shuffle=True, collate_fn=collate_fn, batch_size=64)
+    test_val_dataloader = DataLoader(ds_test, shuffle=True, collate_fn=collate_fn, batch_size=64)
 
     epochs = CONFIG["epochs"]
     train_len = len(train_dataloader) * epochs
@@ -130,6 +130,7 @@ def main():
     tgt_n = 152
     model = Model(n_encoders=CONFIG["n_encoders"],
                   n_decoders=CONFIG["n_decoders"],
+                  d_inputs=103,
                   d_model=64,
                   d_outputs=5,
                   device=device)
@@ -140,7 +141,7 @@ def main():
 
     # Create optimizator
     optimizer = AdamW(model.parameters(), lr=CONFIG["learning_rate"])
-    scheduler = get_scheduler(CONFIG["epochs"], train_len, optimizer, scheduler_name="cosine_with_warmup",
+    scheduler = get_scheduler(CONFIG["epochs"], train_len, optimizer, scheduler_name="constant",
                               wb=wandb_stat)
 
     for epoch in range(1, epochs + 1):
