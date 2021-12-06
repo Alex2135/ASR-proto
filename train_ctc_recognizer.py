@@ -12,11 +12,12 @@ from pprint import pprint
 
 from config import *
 from data_processing import ukr_lang_chars_handle
-from data_processing import CommonVoiceUkr
+from data_processing import UkrVoiceDataset
 from model import EfConfRecognizer as Model
 from model import get_cosine_schedule_with_warmup, OneCycleLR
 
 import os
+from copy import deepcopy
 
 
 def train(model, train_dataloader, optimizer, device, scheduler=None, epoch=1, wb=None):
@@ -146,22 +147,21 @@ def main():
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # Making dataset and loader
-    ds = CommonVoiceUkr(TRAIN_REC_PATH, TRAIN_REC_SPEC_PATH, batch_size=BATCH_SIZE)
+    ds = UkrVoiceDataset(TRAIN_REC_PATH, TRAIN_REC_SPEC_PATH, batch_size=BATCH_SIZE)
     train_dataloader = DataLoader(ds, shuffle=True, collate_fn=collate_fn, batch_size=BATCH_SIZE)
     train_val_dataloader = DataLoader(ds, shuffle=True, collate_fn=collate_fn, batch_size=64)
 
     epochs = CONFIG["epochs"]
     train_len = len(train_dataloader) * epochs
 
-    tgt_n = 152
-    d_model = 64
-    model = Model(d_model=d_model,
-                  n_encoders=CONFIG["n_encoders"],
+    model = Model(n_encoders=CONFIG["n_encoders"],
                   n_decoders=CONFIG["n_decoders"],
+                  d_inputs=103,
+                  d_model=64,
+                  d_outputs=5,
                   device=device)
-    if CONFIG["pretrain"] :
-        PATH = os.path.join(DATA_DIR, "model_1.pt")
-        model = Model(n_encoders=CONFIG["n_encoders"], n_decoders=CONFIG["n_decoders"], device=device)
+    if CONFIG["pretrain"]:
+        PATH = CONFIG["save_model"]["path"]
         model.load_state_dict(torch.load(PATH))
 
     # Create optimizator
@@ -178,10 +178,11 @@ def main():
         if wandb_stat:
             wandb_stat.log({"scheduler lr": scheduler.get_last_lr()[0]})
 
-    if save_model:
-        PATH = os.path.join(DATA_DIR, "model_1.pt")
+    if CONFIG["save_model"]["state"]:
+        PATH = CONFIG["save_model"]["path"]
         print(f"Save model to path: '{PATH}'")
-        torch.save(model.state_dict(), PATH)
+        state_dict = deepcopy(model.state_dict())
+        torch.save(state_dict, PATH)
 
 
 if __name__ == "__main__":

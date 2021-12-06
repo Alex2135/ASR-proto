@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from data_processing import ukr_lang_chars_handle
 from config import *
 from model import Conformer as con
-from data_processing import CommonVoiceUkr
+from data_processing import UkrVoiceDataset
 from torch.utils.data import DataLoader
 import pprint
 
@@ -14,7 +14,7 @@ model = con(n_encoders=CONFIG["n_encoders"], n_decoders=CONFIG["n_decoders"], de
 model.load_state_dict(torch.load(PATH))
 
 model.eval()
-ds = CommonVoiceUkr(TRAIN_PATH, TRAIN_SPEC_PATH)
+ds = UkrVoiceDataset(TRAIN_PATH, TRAIN_SPEC_PATH)
 train_dataloader = DataLoader(ds, shuffle=True, batch_size=1)
 
 with torch.no_grad():

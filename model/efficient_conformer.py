@@ -43,11 +43,11 @@ class AbsolutePositionEncoding(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def pos_f(self, row, column, emb_dim):
+    def pos_f(self, row, column, emb_dim) -> Tensor:
         func = (np.sin, np.cos)[column % 2]
         w_k = 1 / np.power(10000, 2 * column / emb_dim)
         pe_i_j = func(row * w_k)
-        return torch.Tensor([pe_i_j])
+        return Tensor([pe_i_j])
 
     def position_encoding(self, X):
         assert len(X.shape) >= 3, "X shape must have more then 3 dimension"
@@ -64,8 +64,8 @@ class AbsolutePositionEncoding(nn.Module):
         return pe
 
     def forward(self, x):
-        PE = self.position_encoding(x)
-        return PE
+        pe = self.position_encoding(x)
+        return pe
 
 
 class LFFN(nn.Module):
@@ -120,11 +120,11 @@ class MHLA2(nn.Module):
         self.W_K = torch.ones((num_heads, dim_input_kv, dim_q), device=device, requires_grad=True)
         self.W_V = torch.ones((num_heads, dim_input_kv, dim_q), device=device, requires_grad=True)
         self.W_O = nn.Linear(dim_k * num_heads, dim_k * num_heads, bias=False)
-        self.W_Q = nn.init.xavier_uniform_(self.W_Q)
-        self.W_K = nn.init.xavier_uniform_(self.W_K)
-        self.W_V = nn.init.xavier_uniform_(self.W_V)
-        self.d_q = torch.pow(torch.Tensor([dim_q]).to(device), 1 / 4)
-        self.d_k = torch.pow(torch.Tensor([dim_k]).to(device), 1 / 4)
+        self.W_Q = nn.Parameter(nn.init.xavier_uniform_(self.W_Q))
+        self.W_K = nn.Parameter(nn.init.xavier_uniform_(self.W_K))
+        self.W_V = nn.Parameter(nn.init.xavier_uniform_(self.W_V))
+        self.d_q = torch.pow(Tensor([dim_q]).to(device), 1 / 4)
+        self.d_k = torch.pow(Tensor([dim_k]).to(device), 1 / 4)
         self.softmax_col = nn.Softmax(dim=-2)
         self.softmax_row = nn.Softmax(dim=-1)
 
@@ -328,7 +328,7 @@ class EfConfRecognizer(EfficientConformer):
         self.device = kwargs.get("device", "cpu")
         self.lin_out = nn.Sequential(
             nn.Linear(kwargs["d_model"], 38),
-            nn.LogSoftmax(dim=-1) #dim=-1
+            nn.LogSoftmax(dim=-1)
         ).to(self.device)
 
     def forward(self, inputs, tgt):

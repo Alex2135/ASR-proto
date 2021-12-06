@@ -12,11 +12,12 @@ import pprint
 
 from config import *
 from data_processing import ukr_lang_chars_handle
-from data_processing import CommonVoiceUkr
+from data_processing import UkrVoiceDataset
 from model import EfConfClassifier as Model
 from model import get_cosine_schedule_with_warmup, OneCycleLR
 
 import os
+from copy import deepcopy
 
 
 def train(model, train_dataloader, optimizer, device, scheduler=None, epoch=1, wb=None):
@@ -34,10 +35,9 @@ def train(model, train_dataloader, optimizer, device, scheduler=None, epoch=1, w
         X = X.to(device)  #
         X = X.squeeze(dim=1).permute(0, 2, 1)
 
-        emb, output = model(X, tgt_class)  # (batch, time, n_class), (batch, time, n_class)
+        emb, output = model(X, tgt_class)  # X: (batch, time, n_class), tgt_class: (batch, time, n_class)
         tgt_class = tgt_class.squeeze(dim=1).float()
-        loss = ce_criterion(output, tgt_class.squeeze(
-            dim=1).float())  # output.shape == (N, C) where N - batch, C - number of classes
+        loss = ce_criterion(output, tgt_class.squeeze(dim=1).float())
         if wb:
             wb.log({
                 "loss": loss.item(),
@@ -59,13 +59,13 @@ def train(model, train_dataloader, optimizer, device, scheduler=None, epoch=1, w
         optimizer.zero_grad()
 
 
-def val(model, dataloader, device, epoch, wb=None, caption="train"):
+def val(model, dl, device, wb=None, caption="train"):
     model.eval()
     positive = 0
-    train_len = dataloader.sampler.num_samples
+    train_len = dl.sampler.num_samples
 
     with torch.no_grad():
-        for idx, (X, tgt) in tqdm(enumerate(dataloader)):
+        for idx, (X, tgt) in tqdm(enumerate(dl)):
             tgt_class = torch.Tensor(tgt["label"]).long().to(device)
             tgt_class = F.one_hot(tgt_class, num_classes=5).unsqueeze(dim=1).float()
             X = X.to(device)  #
@@ -114,20 +114,20 @@ def collate_fn(data):
 
 
 def main():
+    # torch.random.manual_seed(42)
     wandb_stat = wandb.init(project="ASR", entity="Alex2135", config=CONFIG)
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # Making dataset and loader
-    ds_train = CommonVoiceUkr(TRAIN_PATH, TRAIN_SPEC_PATH, pad_dim1=103, batch_size=BATCH_SIZE)
-    ds_test = CommonVoiceUkr(TEST_PATH, TRAIN_SPEC_PATH, pad_dim1=103, batch_size=BATCH_SIZE)
-    train_dataloader = DataLoader(ds_train, shuffle=True, collate_fn=collate_fn, batch_size=BATCH_SIZE)
-    train_val_dataloader = DataLoader(ds_train, shuffle=True, collate_fn=collate_fn, batch_size=64)
-    test_val_dataloader = DataLoader(ds_test, shuffle=True, collate_fn=collate_fn, batch_size=64)
+    ds_train = UkrVoiceDataset(TRAIN_PATH, CLASSIFIER_SPEC_PATH, pad_dim1=103)
+    ds_test = UkrVoiceDataset(TEST_PATH, CLASSIFIER_SPEC_PATH, pad_dim1=103)
+    train_dl = DataLoader(ds_train, shuffle=True, collate_fn=collate_fn, batch_size=CONFIG["batch_size"]["train"])
+    train_val_dl = DataLoader(ds_train, shuffle=True, collate_fn=collate_fn, batch_size=CONFIG["batch_size"]["test"])
+    test_val_dl = DataLoader(ds_test, shuffle=True, collate_fn=collate_fn, batch_size=CONFIG["batch_size"]["test"])
 
+    # Set model
     epochs = CONFIG["epochs"]
-    train_len = len(train_dataloader) * epochs
-
-    tgt_n = 152
+    train_len = len(train_dl) * epochs
     model = Model(n_encoders=CONFIG["n_encoders"],
                   n_decoders=CONFIG["n_decoders"],
                   d_inputs=103,
@@ -135,8 +135,7 @@ def main():
                   d_outputs=5,
                   device=device)
     if CONFIG["pretrain"]:
-        PATH = os.path.join(DATA_DIR, "model_1.pt")
-        model = Model(n_encoders=CONFIG["n_encoders"], n_decoders=CONFIG["n_decoders"], device=device)
+        PATH = CONFIG["save_model"]["path"]
         model.load_state_dict(torch.load(PATH))
 
     # Create optimizator
@@ -146,15 +145,15 @@ def main():
 
     for epoch in range(1, epochs + 1):
         print(f"Epoch №{epoch}")
-        train(model, train_dataloader, optimizer, device, scheduler=scheduler, epoch=epoch, wb=wandb_stat)
+        train(model, train_dl, optimizer, device, scheduler=scheduler, epoch=epoch, wb=wandb_stat)
 
         print("\n")
         print("Evaluation on train dataset")
-        val(model, train_val_dataloader, device, epoch, wb=wandb_stat, caption="train")
+        val(model, train_val_dl, device, wb=wandb_stat, caption="train")
 
         print("\n")
         print("Evaluation on test dataset")
-        val(model, test_val_dataloader, device, epoch, wb=wandb_stat, caption="test")
+        val(model, test_val_dl, device, wb=wandb_stat, caption="test")
 
         scheduler.step(epoch)
         last_lr = float(scheduler.get_last_lr()[0])
@@ -162,10 +161,11 @@ def main():
         if wandb_stat:
             wandb_stat.log({"scheduler lr": last_lr})
 
-    if CONFIG["save_model"]:
-        PATH = os.path.join(DATA_DIR, "model_2.pt")
+    if CONFIG["save_model"]["state"]:
+        PATH = CONFIG["save_model"]["path"]
         print(f"Save model to path: '{PATH}'")
-        torch.save(model.state_dict(), PATH)
+        state_dict = deepcopy(model.state_dict())
+        torch.save(state_dict, PATH)
 
 
 if __name__ == "__main__":

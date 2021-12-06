@@ -126,6 +126,26 @@ namespace ASR_proto
             return finalString;
         }
 
+
+        /*
+         * TODO: Run virtual env from C#
+            Process process = new Process();
+            process.StartInfo.FileName = "cmd.exe";
+            process.StartInfo.CreateNoWindow = true;
+            process.StartInfo.RedirectStandardInput = true;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.UseShellExecute = false;
+            process.Start();
+            process.StandardInput.WriteLine("activate virtualenvName");
+            process.StandardInput.WriteLine("cd C:\\PathWhereYourPythonIsLocated");
+            process.StandardInput.WriteLine("python hello.py");
+            process.StandardInput.Flush();
+            process.StandardInput.Close();
+            Console.WriteLine(process.StandardOutput.ReadToEnd());
+            Console.ReadKey();
+
+         */
+
         static void Main(string[] args)
         {            
             try
