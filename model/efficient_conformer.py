@@ -69,7 +69,7 @@ class AbsolutePositionEncoding(nn.Module):
 
 
 class LFFN(nn.Module):
-    def __init__(self, dim, dim_bn, dim_hid, dropout=0.3):
+    def __init__(self, dim, dim_bn, dim_hid, dropout=0.5):
         """
         Args:
         dim_bn - int,
@@ -184,7 +184,7 @@ class PointWiseConv(nn.Module):
 
 
 class ConvModule(nn.Module):
-    def __init__(self, dim_W, dim_bn, dropout=0.3):
+    def __init__(self, dim_W, dim_bn, dropout=0.5):
         super().__init__()
         self.ln1 = nn.LayerNorm(dim_W)
         self.pw_conv1 = PointWiseConv(chan_in=1)
@@ -213,7 +213,7 @@ class ConvModule(nn.Module):
 
 
 class LAC(nn.Module):
-    def __init__(self, d_model, n_heads=2, device="cpu", dropout=0.1):
+    def __init__(self, d_model, n_heads=2, device="cpu", dropout=0.3):
         super().__init__()
         self.lffn1 = LFFN(dim=d_model, dim_bn=256, dim_hid=1024)
         self.do1 = nn.Dropout(dropout)
@@ -246,7 +246,7 @@ class Encoder(nn.Module):
 
 
 class DecoderBlock(nn.Module):
-    def __init__(self, dim_tgt, dim_mem, n_heads=4, device="cpu", dropout=0.1):
+    def __init__(self, dim_tgt, dim_mem, n_heads=4, device="cpu", dropout=0.3):
         super().__init__()
         self.mhla_with_mask = MHLA2(num_heads=n_heads, dim_input_q=dim_tgt, dim_input_kv=dim_tgt, mask=True, device=device)
         self.do1 = nn.Dropout(dropout)
@@ -323,12 +323,12 @@ class EfficientConformer(nn.Module):
 
 
 class EfConfRecognizer(EfficientConformer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, d_model, *args, **kwargs):
+        super().__init__(d_model=d_model, *args, **kwargs)
         self.device = kwargs.get("device", "cpu")
         self.lin_out = nn.Sequential(
-            nn.Linear(kwargs["d_model"], 38),
-            nn.LogSoftmax(dim=-1)
+            nn.Linear(d_model, 38),
+            #nn.LogSoftmax(dim=-1)
         ).to(self.device)
 
     def forward(self, inputs, tgt):

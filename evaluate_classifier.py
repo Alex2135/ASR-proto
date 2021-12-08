@@ -24,16 +24,18 @@ def eval_by_dl(model, dl, device, zero_labels=False, wb=None, caption="train"):
         for idx, (X, tgt) in tqdm(enumerate(dl)):
             tgt_ = torch.Tensor(tgt["label"]).long().to(device)
             tgt_class = torch.zeros_like(tgt_) if zero_labels else tgt_
-            tgt_ = F.one_hot(tgt_class, num_classes=5).long()
+            tgt_ = F.one_hot(tgt_, num_classes=5).long()
             tgt_class = F.one_hot(tgt_class, num_classes=5).unsqueeze(dim=1).float()
             X = X.to(device)  #
             X = X.squeeze(dim=1).permute(0, 2, 1)
             emb, output = model(X, tgt_class)
 
-            ap_output = (output > 0.5).long()
-            apmeter.add(ap_output, tgt_)
             A = torch.argmax(output, dim=-1).reshape(-1)
-            B = torch.argmax(tgt_class, dim=-1).reshape(-1)
+            B = torch.argmax(tgt_, dim=-1).reshape(-1)
+
+            # if zero_labels:
+            #      print(f"\n{A=}\n{tgt_=}")
+            apmeter.add(A, tgt_)
             is_right = (A == B)
             positive += torch.sum(is_right)
 
@@ -43,7 +45,7 @@ def eval_by_dl(model, dl, device, zero_labels=False, wb=None, caption="train"):
             f"{caption}, accuracy": accuracy
         })
     print(f"Accuracy on {caption.upper()} dataset: {accuracy * 100:.2f}%\n")
-    print(f"mAP on {caption.upper()} dataset: {apmeter.value().item()}%\n")
+    print(f"mAP on {caption.upper()} dataset: {apmeter.value()}%\n")
 
 
 def eval_sample(inputs: torch.Tensor, model: nn.Module, device="cpu") -> int:

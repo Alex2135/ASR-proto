@@ -23,8 +23,8 @@ from copy import deepcopy
 def train(model, train_dataloader, optimizer, device, scheduler=None, epoch=1, wb=None):
     print(f"Training begin")
     model.train()
-    ctc_criterion = nn.CTCLoss(reduction="none",
-                               blank=ukr_lang_chars_handle.token_to_index["<blank>"])  # , zero_infinity=True)
+    ctc_criterion = nn.CTCLoss(reduction="none", blank=ukr_lang_chars_handle.token_to_index["<blank>"],
+                               zero_infinity=True)
     running_loss = []
     losses_per_phase = []
     train_len = len(train_dataloader)
@@ -43,6 +43,7 @@ def train(model, train_dataloader, optimizer, device, scheduler=None, epoch=1, w
         # print(f"{one_hots.shape=}")
 
         emb, output = model(X, one_hots)  # (batch, time, n_class), (batch, time, n_class)
+        output = F.log_softmax(output, dim=-1)
 
         output = output.permute(1, 0, 2).to(device).detach().requires_grad_()
         indeces = ukr_lang_chars_handle.sentences_to_indeces(tgt_text).to(device)
@@ -50,6 +51,8 @@ def train(model, train_dataloader, optimizer, device, scheduler=None, epoch=1, w
         """
         print("tgt_text:")
         pprint(tgt_text)
+        print("tgt_len")
+        pprint(tgt_lengths)
         print("indeces:")
         pprint(indeces)
         print(f"Inputs shape: {output.shape}")
@@ -57,24 +60,25 @@ def train(model, train_dataloader, optimizer, device, scheduler=None, epoch=1, w
         print(f"one_hots shape: {one_hots.shape}")
         """
 
-        input_lengths = torch.full(size=(output.shape[1],), fill_value=output.shape[-2], dtype=torch.long).to(device)
-        target_lengths = torch.full(size=(output.shape[1],), fill_value=tgt_max_len, dtype=torch.long).to(device)
+        input_lengths = torch.full(size=(output.shape[1],), fill_value=output.shape[0], dtype=torch.long).to(device)
+        target_lengths = torch.Tensor(tgt_lengths).long().to(device)
 
-        loss = ctc_criterion(output.cpu(), indeces, input_lengths, target_lengths)
+        loss = ctc_criterion(output, indeces, input_lengths, target_lengths)
+        # print(f"{loss=}")
         if wb:
             wb.log({
                 "loss": loss.item(),
                 "epoch": epoch
             })
         # print(f"{loss=}")
-        loss.mean().backward()
+        loss.backward()
         optimizer.step()
         if scheduler:
             scheduler.step()
 
         running_loss.append(loss.cpu().detach().numpy())
         losses_per_phase.append(loss.cpu().detach().numpy())
-        if (idx + 1) % 10 == 0:  # print every 200 mini-batches
+        if (idx + 1) % (train_len // 10) == 0:  # print every 200 mini-batches
             loss_mean = np.mean(np.array(losses_per_phase))
             print(f"Epoch: {epoch}, Last loss: {loss.item():.4f}, Loss phase mean: {loss_mean:.4f}")
             if wb:
@@ -147,22 +151,21 @@ def main():
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # Making dataset and loader
-    ds = UkrVoiceDataset(TRAIN_REC_PATH, TRAIN_REC_SPEC_PATH, batch_size=BATCH_SIZE)
-    train_dataloader = DataLoader(ds, shuffle=True, collate_fn=collate_fn, batch_size=BATCH_SIZE)
-    train_val_dataloader = DataLoader(ds, shuffle=True, collate_fn=collate_fn, batch_size=64)
+    ds_train = UkrVoiceDataset(TRAIN_PATH, CLASSIFIER_SPEC_PATH, pad_dim1=103)
+    ds_test = UkrVoiceDataset(TEST_PATH, CLASSIFIER_SPEC_PATH, pad_dim1=103)
+    train_dl = DataLoader(ds_train, shuffle=True, collate_fn=collate_fn, batch_size=CONFIG["batch_size"]["train"])
+    train_val_dl = DataLoader(ds_train, shuffle=True, collate_fn=collate_fn, batch_size=CONFIG["batch_size"]["test"])
+    test_val_dl = DataLoader(ds_test, shuffle=True, collate_fn=collate_fn, batch_size=CONFIG["batch_size"]["test"])
 
     epochs = CONFIG["epochs"]
-    train_len = len(train_dataloader) * epochs
+    train_len = len(train_dl) * epochs
 
     model = Model(n_encoders=CONFIG["n_encoders"],
                   n_decoders=CONFIG["n_decoders"],
                   d_inputs=103,
                   d_model=64,
-                  d_outputs=5,
+                  d_outputs=38,
                   device=device)
-    if CONFIG["pretrain"]:
-        PATH = CONFIG["save_model"]["path"]
-        model.load_state_dict(torch.load(PATH))
 
     # Create optimizator
     optimizer = AdamW(model.parameters(), lr=CONFIG["learning_rate"])
@@ -171,8 +174,8 @@ def main():
 
     for epoch in range(1, epochs + 1):
         print(f"Epoch №{epoch}")
-        train(model, train_dataloader, optimizer, device, scheduler=scheduler, epoch=epoch, wb=wandb_stat)
-        val(model, train_val_dataloader, device, epoch, wb=wandb_stat)
+        train(model, train_dl, optimizer, device, scheduler=scheduler, epoch=epoch, wb=wandb_stat)
+        val(model, train_val_dl, device, epoch, wb=wandb_stat)
         scheduler.step(epoch)
         print(f"scheduler last_lr: {scheduler.get_last_lr()[0]}")
         if wandb_stat:
