@@ -328,7 +328,7 @@ class EfConfRecognizer(EfficientConformer):
         self.device = kwargs.get("device", "cpu")
         self.lin_out = nn.Sequential(
             nn.Linear(d_model, 38),
-            #nn.LogSoftmax(dim=-1)
+            nn.LogSoftmax(dim=-1)
         ).to(self.device)
 
     def forward(self, inputs, tgt):

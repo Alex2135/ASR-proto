@@ -43,8 +43,6 @@ def train(model, train_dataloader, optimizer, device, scheduler=None, epoch=1, w
         # print(f"{one_hots.shape=}")
 
         emb, output = model(X, one_hots)  # (batch, time, n_class), (batch, time, n_class)
-        output = F.log_softmax(output, dim=-1)
-
         output = output.permute(1, 0, 2).to(device).detach().requires_grad_()
         indeces = ukr_lang_chars_handle.sentences_to_indeces(tgt_text).to(device)
 
@@ -104,8 +102,9 @@ def val(model, train_dataloader, device, epoch, wb=None):
             X = X.to(device)  #
             X = X.squeeze(dim=1).permute(0, 2, 1)
             emb, output = model(X, one_hots)
+            #print(f"\n{output.shape=}\n{one_hots.shape=}")
             A = torch.argmax(output, dim=-1)
-            B = torch.argmax(tgt_class, dim=-1)
+            B = torch.argmax(one_hots, dim=-1)
             is_right = (A == B)
             positive += torch.sum(is_right)
 
@@ -175,7 +174,7 @@ def main():
     for epoch in range(1, epochs + 1):
         print(f"Epoch №{epoch}")
         train(model, train_dl, optimizer, device, scheduler=scheduler, epoch=epoch, wb=wandb_stat)
-        val(model, train_val_dl, device, epoch, wb=wandb_stat)
+        val(model, train_dl, device, epoch, wb=wandb_stat)
         scheduler.step(epoch)
         print(f"scheduler last_lr: {scheduler.get_last_lr()[0]}")
         if wandb_stat:
